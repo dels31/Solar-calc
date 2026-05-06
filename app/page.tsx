@@ -721,45 +721,6 @@ export default function SolarCalculator() {
           </table>
         </div>
 
-const TechnicalSummary = () => {
-  return (
-    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Card 1: Power Reliability */}
-      <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mb-4 text-white">
-          <Zap size={20} />
-        </div>
-        <h4 className="font-black text-emerald-900 text-sm uppercase tracking-wider mb-2">Power Reliability</h4>
-        <p className="text-xs text-emerald-700 leading-relaxed font-medium">
-          Sistem dikonfigurasi untuk menangani beban kritis secara kontinyu. Dengan 18 unit LFP Battery, lu punya cadangan energi mandiri yang aman untuk siklus harian tanpa merusak umur baterai.
-        </p>
-      </div>
-
-      {/* Card 2: Structural Safety */}
-      <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center mb-4 text-white">
-          <Weight size={20} />
-        </div>
-        <h4 className="font-black text-blue-900 text-sm uppercase tracking-wider mb-2">Structural Safety</h4>
-        <p className="text-xs text-blue-700 leading-relaxed font-medium">
-          Estimasi beban struktur adalah <span className="font-black">{loadPerSqm} kg/m²</span>. Menggunakan mounting aluminium AL6005-T5 yang ringan namun standar industrial, menjamin atap tetap kokoh dalam jangka panjang.
-        </p>
-      </div>
-
-      {/* Card 3: Quality Assurance */}
-      <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center mb-4 text-white">
-          <ShieldCheck size={20} />
-        </div>
-        <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-2">Engineering Standard</h4>
-        <p className="text-xs text-slate-600 leading-relaxed font-medium">
-          Menggunakan kabel PV 6mm² untuk meminimalkan <span className="italic">voltage drop</span>. Proteksi kelistrikan lengkap dengan DC Breaker dan Arrester sesuai standar keamanan sistem PLTS profesional.
-        </p>
-      </div>
-    </div>
-  );
-};
-
         <div className="mt-10 p-8 bg-slate-900 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
             <p className="text-green-400 font-bold uppercase tracking-[0.2em] text-[10px] mb-2">
