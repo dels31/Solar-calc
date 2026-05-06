@@ -21,6 +21,9 @@ interface Panel {
   pmax: number;
   voc: number;
   isc: number;
+  length_mm: number;
+  width_mm: number;
+  weight_kg: number;
 }
 interface Inverter {
   id: string;
@@ -103,6 +106,8 @@ export default function SolarCalculator() {
   const battAh = Math.ceil(((energiHarianWh * safetyFactor) / 48) * 1.25);
   const totalPacks = Math.ceil(battAh / selectedPackCap);
 
+  const [jarakKeInverter, setJarakKeInverter] = useState(15); // Default 15 meter
+
   // Stream & Wiring Logic
   const invMaxVoc = selectedInverter?.max_voc_input || 450;
   const pVoc = selectedPanel?.voc || 49.9;
@@ -117,6 +122,31 @@ export default function SolarCalculator() {
     dbKabel.find((k) => k.max_ampere >= amp)?.ukuran_mm2 || "N/A";
   const getFuse = (amp: number) =>
     dbFuse.find((f) => f.rating_ampere >= amp * 1.25)?.rating_ampere || "N/A";
+
+  // Hitung Luas Area (dalam Meter Persegi)
+  const panelLengthM = (selectedPanel?.length_mm || 2279) / 1000;
+  const panelWidthM = (selectedPanel?.width_mm || 1134) / 1000;
+  const pWeight = selectedPanel?.weight_kg ?? 28;
+  const areaPerPanel = panelLengthM * panelWidthM;
+
+  // Luas Total dengan Safety Factor 20% untuk ruang maintenance/jalan teknisi
+  const totalAreaNeeded = (jmlPanel * areaPerPanel * 1.2).toFixed(1);
+
+  const areaM2 = (panelLengthM / 1000) * (panelWidthM / 1000);
+  const totalWeight = jmlPanel * pWeight;
+
+  // Hitung load per m2 dengan pengaman tambahan
+  const loadPerSqm =
+    totalWeight > 0 && areaM2 > 0
+      ? (totalWeight / (jmlPanel * areaM2)).toFixed(2)
+      : "0";
+
+  // Rumus: (Jarak x 2 jalur) x Jumlah String + 10% Waste/Margin
+  const totalKabelPV = jarakKeInverter * 2 * (jmlPanel ?? 1) * 1.1;
+
+  // Hitung estimasi panjang pipa conduit (asumsi totalKabelPV dibagi 2 karena kabel ada +/-)
+  // Lalu ambil 70% nya sebagai bagian yang masuk pipa
+  const estimasiPipaConduit = Math.ceil(((totalKabelPV / 2) * 0.7) / 2.9); // 2.9m adalah panjang standar pipa PVC per batang
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 lg:p-12 font-sans text-slate-900">
@@ -177,6 +207,7 @@ export default function SolarCalculator() {
                   >
                     <option value={50}>48V 50Ah</option>
                     <option value={100}>48V 100Ah</option>
+                    <option value={150}>48V 150Ah</option>
                     <option value={200}>48V 200Ah</option>
                   </select>
                 </div>
@@ -222,6 +253,28 @@ export default function SolarCalculator() {
                     className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     onChange={(e) => setJamOp(Number(e.target.value))}
                   />
+                </div>
+                <div>
+                  <div className="flex justify-between mb-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                      Jarak Kabel PV ke Inverter (M)
+                    </label>
+                    <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                      {jarakKeInverter} Meter
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    step="1"
+                    value={jarakKeInverter}
+                    onChange={(e) => setJarakKeInverter(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-2 italic">
+                    *Estimasi jalur kabel dari atap ke ruang mesin.
+                  </p>
                 </div>
               </div>
             </div>
@@ -301,6 +354,41 @@ export default function SolarCalculator() {
                   </div>
                   <p className="text-[10px] font-bold text-green-600 bg-green-50 inline-block px-2 py-0.5 rounded-md mt-2 uppercase">
                     Voc: {(finalS * pVoc).toFixed(1)}V (Safe)
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <LayoutGrid size={14} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">
+                    Space Required
+                  </span>
+                </div>
+                <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100">
+                  <div className="text-3xl font-black text-slate-800">
+                    {totalAreaNeeded} m²
+                  </div>
+                  <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase">
+                    Est. Area (+20% Maintenance Space)
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-purple-600">
+                  <LayoutGrid size={14} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">
+                    Total System Weight
+                  </span>
+                </div>
+                <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100">
+                  <div className="text-3xl font-black text-slate-800">
+                    {totalWeight} kg
+                  </div>
+                  <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase">
+                    Roof Load:{" "}
+                    <span className="text-emerald-900">{loadPerSqm} kg/m²</span>
                   </p>
                 </div>
               </div>
@@ -467,28 +555,210 @@ export default function SolarCalculator() {
                   48V / {selectedPackCap}Ah
                 </td>
               </tr>
+              {/* Item Mounting yang Lebih Detail */}
               <tr className="hover:bg-slate-50/50 transition-colors">
                 <td className="py-5">
                   <p className="font-black text-slate-800">
-                    Mounting & Rail System
+                    Aluminium Mounting Rails
                   </p>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                    AL-6005-T5 Anodized Aluminum
+                    AL6005-T5 Anodized (Standar 4.2m/6m)
                   </p>
                 </td>
                 <td className="py-5 text-center font-black text-slate-700">
-                  {jmlPanel}
+                  {Math.ceil(jmlPanel / 2)}
                 </td>
                 <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
-                  Set
+                  Batang
                 </td>
                 <td className="py-5 text-right font-bold text-slate-500">
-                  Universal L-Feet/Hanger
+                  HD Rail System
+                </td>
+              </tr>
+
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">Module Clamps Kit</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    End Clamps & Mid Clamps Set
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {jmlPanel * 2 + 4}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Pcs
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Universal 35-40mm
+                </td>
+              </tr>
+
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    Roof Attachment (L-Feet)
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    Stainless Steel Bolt + EPDM Rubber
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {Math.ceil(jmlPanel * 1.5)}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Pcs
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Heavy Duty L-Feet
+                </td>
+              </tr>
+
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    Earthing & Grounding Kit
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    Grounding Lug & Bonding Clips
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  1
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Lot
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Lightning Protection
+                </td>
+              </tr>
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    MC4 Connector Pair
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    IP68 Waterproof / 1500V Rated
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {/* Logika: 2 pasang per string + cadangan */}
+                  {jmlPanel * 2 + 2}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Pair
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Multicontact Standard
+                </td>
+              </tr>
+
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    PV Cable Management Kit
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    Stainless Steel Clips & UV Resistant Ties
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {jmlPanel * 2}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Pcs
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Anti-Corrosive Clips
+                </td>
+              </tr>
+
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    Solar PV Cable {getCable(totalIsc)}mm²
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    XLPO Insulated / Halogen Free (Red & Black)
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    Total sepasang (Merah & Hitam) termasuk margin 10%
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {Math.ceil(totalKabelPV)}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Meter
+                </td>
+                <td className="py-5 text-right font-bold text-blue-600">
+                  Double Insulated
+                </td>
+              </tr>
+
+              {/* Baris Pipa Conduit yang otomatis ikut berubah */}
+              <tr className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-5">
+                  <p className="font-black text-slate-800">
+                    Pipa Conduit Rigid 20mm
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                    High Impact PVC - Putih
+                  </p>
+                </td>
+                <td className="py-5 text-center font-black text-slate-700">
+                  {estimasiPipaConduit}
+                </td>
+                <td className="py-5 text-[11px] font-bold text-slate-400 uppercase">
+                  Batang
+                </td>
+                <td className="py-5 text-right font-bold text-slate-500">
+                  Clips & Socks Incl.
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+const TechnicalSummary = () => {
+  return (
+    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Card 1: Power Reliability */}
+      <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl">
+        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mb-4 text-white">
+          <Zap size={20} />
+        </div>
+        <h4 className="font-black text-emerald-900 text-sm uppercase tracking-wider mb-2">Power Reliability</h4>
+        <p className="text-xs text-emerald-700 leading-relaxed font-medium">
+          Sistem dikonfigurasi untuk menangani beban kritis secara kontinyu. Dengan 18 unit LFP Battery, lu punya cadangan energi mandiri yang aman untuk siklus harian tanpa merusak umur baterai.
+        </p>
+      </div>
+
+      {/* Card 2: Structural Safety */}
+      <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
+        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center mb-4 text-white">
+          <Weight size={20} />
+        </div>
+        <h4 className="font-black text-blue-900 text-sm uppercase tracking-wider mb-2">Structural Safety</h4>
+        <p className="text-xs text-blue-700 leading-relaxed font-medium">
+          Estimasi beban struktur adalah <span className="font-black">{loadPerSqm} kg/m²</span>. Menggunakan mounting aluminium AL6005-T5 yang ringan namun standar industrial, menjamin atap tetap kokoh dalam jangka panjang.
+        </p>
+      </div>
+
+      {/* Card 3: Quality Assurance */}
+      <div className="bg-slate-50 border border-slate-200 p-6 rounded-3xl">
+        <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center mb-4 text-white">
+          <ShieldCheck size={20} />
+        </div>
+        <h4 className="font-black text-slate-900 text-sm uppercase tracking-wider mb-2">Engineering Standard</h4>
+        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+          Menggunakan kabel PV 6mm² untuk meminimalkan <span className="italic">voltage drop</span>. Proteksi kelistrikan lengkap dengan DC Breaker dan Arrester sesuai standar keamanan sistem PLTS profesional.
+        </p>
+      </div>
+    </div>
+  );
+};
 
         <div className="mt-10 p-8 bg-slate-900 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-6">
           <div>
