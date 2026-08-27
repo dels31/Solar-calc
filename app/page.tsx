@@ -4,10 +4,22 @@ import React, { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import {
+  defaultPanels,
+  defaultInverters,
+  defaultBatteries,
+  defaultKabel,
+  defaultFuse,
+  type Panel,
+  type Inverter,
+  type Battery,
+  type Kabel,
+  type Fuse,
+} from "@/lib/defaultData";
+import {
   Sun,
   Moon,
   Laptop,
-  Battery,
+  Battery as BatteryIcon,
   Zap,
   Settings2,
   ShieldCheck,
@@ -21,54 +33,16 @@ import {
 
 import * as XLSX from "xlsx";
 
-// Interfaces agar TypeScript tidak rewel
-interface Panel {
-  id: string;
-  tipe_wp: string;
-  pmax: number;
-  voc: number;
-  isc: number;
-  length_mm: number;
-  width_mm: number;
-  weight_kg: number;
-}
-interface Inverter {
-  id: string;
-  merk_tipe: string;
-  rated_power_va: number;
-  max_voc_input: number;
-  max_isc_input: number;
-  system_voltage: number;
-  price_estimate: number;
-}
-
-interface Battery {
-  id: string;
-  brand: string;
-  model: string;
-  type: string;
-  voltage: number;
-  capacity_ah: number;
-  weight_kg: number;
-  max_dod: number;
-  max_discharge: number;
-}
-interface Kabel {
-  max_ampere: number;
-  ukuran_mm2: number;
-}
-interface Fuse {
-  rating_ampere: number;
-}
-
 type ThemeMode = "light" | "dark" | "system";
 
 export default function SolarCalculator() {
-  const [dbPanels, setDbPanels] = useState<Panel[]>([]);
-  const [dbInverters, setDbInverters] = useState<Inverter[]>([]);
-  const [dbKabel, setDbKabel] = useState<Kabel[]>([]);
-  const [dbFuse, setDbFuse] = useState<Fuse[]>([]);
-  const [dbBateries, setDbBateries] = useState<Battery[]>([]);
+  // State Katalog Komponen (Diinisialisasi dengan data default agar tidak pernah kosong)
+  const [dbPanels, setDbPanels] = useState<Panel[]>(defaultPanels);
+  const [dbInverters, setDbInverters] = useState<Inverter[]>(defaultInverters);
+  const [dbKabel, setDbKabel] = useState<Kabel[]>(defaultKabel);
+  const [dbFuse, setDbFuse] = useState<Fuse[]>(defaultFuse);
+  const [dbBateries, setDbBateries] = useState<Battery[]>(defaultBatteries);
+  const [isFirestoreConnected, setIsFirestoreConnected] = useState(false);
 
   // State Theme (Light / Dark / System)
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -82,11 +56,16 @@ export default function SolarCalculator() {
   const [dayaVA, setDayaVA] = useState(3000);
   const [psh, setPsh] = useState(4.5);
   const [jamOp, setJamOp] = useState(24);
-  const [selectedPanel, setSelectedPanel] = useState<Panel | null>(null);
+  const [selectedPanel, setSelectedPanel] = useState<Panel | null>(
+    defaultPanels.find((p) => p.pmax === 550) || defaultPanels[0]
+  );
+  // 'safety' = Margin Engineer (Standard), 'optimized' = Margin Tipis (Competitive)
   const [estimationMode, setEstimationMode] = useState<"safety" | "optimized">(
     "safety",
   );
-  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(
+    defaultBatteries.find((b) => b.capacity_ah === 100) || defaultBatteries[0]
+  );
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
   useEffect(() => {
@@ -121,47 +100,55 @@ export default function SolarCalculator() {
     return () => mediaQuery.removeEventListener("change", listener);
   }, [theme]);
 
-  // Fetch data dari Firebase Firestore
+  // Fetch data dari Firebase Firestore (Sinkronisasi Live Data)
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("🔥 Menyambung ke Firebase Firestore...");
+        
         // Fetch Panels
         const panelSnap = await getDocs(collection(db, "database_panel"));
-        const p = panelSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Panel[];
+        if (!panelSnap.empty) {
+          const p = panelSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Panel[];
+          setDbPanels(p);
+          setSelectedPanel((prev) => p.find((item) => item.pmax === (prev?.pmax || 550)) || p[0]);
+          setIsFirestoreConnected(true);
+        }
 
         // Fetch Inverters
         const inverterSnap = await getDocs(collection(db, "database_inverter"));
-        const i = inverterSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Inverter[];
+        if (!inverterSnap.empty) {
+          const i = inverterSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Inverter[];
+          setDbInverters(i);
+        }
 
         // Fetch Kabel (ordered by max_ampere)
         const kabelSnap = await getDocs(
           query(collection(db, "database_kabel"), orderBy("max_ampere"))
         );
-        const k = kabelSnap.docs.map((d) => ({ ...d.data() })) as Kabel[];
+        if (!kabelSnap.empty) {
+          const k = kabelSnap.docs.map((d) => ({ ...d.data() })) as Kabel[];
+          setDbKabel(k);
+        }
 
         // Fetch Fuse (ordered by rating_ampere)
         const fuseSnap = await getDocs(
           query(collection(db, "database_fuse"), orderBy("rating_ampere"))
         );
-        const f = fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[];
+        if (!fuseSnap.empty) {
+          const f = fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[];
+          setDbFuse(f);
+        }
 
         // Fetch Batteries
         const batterySnap = await getDocs(collection(db, "database_batteries"));
-        const b = batterySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Battery[];
-
-        if (p.length > 0) {
-          setDbPanels(p);
-          setSelectedPanel(p.find((item) => item.pmax === 550) || p[0]);
-        }
-        if (i.length > 0) setDbInverters(i);
-        if (k.length > 0) setDbKabel(k);
-        if (f.length > 0) setDbFuse(f);
-        if (b.length > 0) {
+        if (!batterySnap.empty) {
+          const b = batterySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Battery[];
           setDbBateries(b);
-          setSelectedBattery(b.find((item) => item.capacity_ah === 100) || b[0]);
+          setSelectedBattery((prev) => b.find((item) => item.capacity_ah === (prev?.capacity_ah || 100)) || b[0]);
         }
       } catch (error) {
-        console.error("Error fetching data from Firestore:", error);
+        console.warn("⚠️ Menggunakan Local Dataset. Error menyambung ke Firestore:", error);
       }
     };
     fetchData();
@@ -370,8 +357,12 @@ export default function SolarCalculator() {
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 Solar Calc Pro
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-full border border-emerald-300/40 dark:border-emerald-700/40">
-                  Firestore Connected
+                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
+                  isFirestoreConnected
+                    ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-300/40 dark:border-emerald-700/40"
+                    : "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border-blue-300/40 dark:border-blue-700/40"
+                }`}>
+                  {isFirestoreConnected ? "🔥 Firestore Connected" : "⚡ Ready"}
                 </span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -648,7 +639,7 @@ export default function SolarCalculator() {
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-7 rounded-4xl border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
-                <Battery className="text-blue-500 mb-4" size={24} />
+                <BatteryIcon className="text-blue-500 mb-4" size={24} />
                 <p className="text-slate-400 dark:text-slate-500 text-[12px] font-black uppercase tracking-widest mb-1">
                   Storage Capacity
                 </p>
