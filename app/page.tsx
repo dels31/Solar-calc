@@ -1417,6 +1417,8 @@ export default function SolarCalculator() {
               tarifPLN,
             }}
             results={calc}
+            onOpenUpgradeModal={() => setIsPaymentModalOpen(true)}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
           />
 
           <div className="mt-10 p-8 bg-slate-900 dark:bg-slate-950 border border-transparent dark:border-slate-800 rounded-[2.5rem] flex flex-col lg:flex-row justify-between items-center gap-6">
