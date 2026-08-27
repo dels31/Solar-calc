@@ -67,6 +67,8 @@ export const defaultKabel: Kabel[] = [
   { max_ampere: 85, ukuran_mm2: 16 },
   { max_ampere: 115, ukuran_mm2: 25 },
   { max_ampere: 150, ukuran_mm2: 35 },
+  { max_ampere: 190, ukuran_mm2: 50 },
+  { max_ampere: 240, ukuran_mm2: 70 },
 ];
 
 export const defaultFuse: Fuse[] = [
@@ -80,6 +82,8 @@ export const defaultFuse: Fuse[] = [
   { rating_ampere: 80 },
   { rating_ampere: 100 },
   { rating_ampere: 125 },
+  { rating_ampere: 150 },
   { rating_ampere: 160 },
   { rating_ampere: 200 },
+  { rating_ampere: 250 },
 ];

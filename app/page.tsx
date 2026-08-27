@@ -16,6 +16,11 @@ import {
   type Fuse,
 } from "@/lib/defaultData";
 import {
+  calculateSolarSystem,
+  recommendInverter,
+  generateBoMData,
+} from "@/lib/solarCalculator";
+import {
   Sun,
   Moon,
   Laptop,
@@ -36,7 +41,7 @@ import * as XLSX from "xlsx";
 type ThemeMode = "light" | "dark" | "system";
 
 export default function SolarCalculator() {
-  // State Katalog Komponen (Diinisialisasi dengan data default agar tidak pernah kosong)
+  // State Database Katalog Komponen
   const [dbPanels, setDbPanels] = useState<Panel[]>(defaultPanels);
   const [dbInverters, setDbInverters] = useState<Inverter[]>(defaultInverters);
   const [dbKabel, setDbKabel] = useState<Kabel[]>(defaultKabel);
@@ -52,16 +57,15 @@ export default function SolarCalculator() {
     return "system";
   });
 
-  // State Input
+  // State Input User
   const [dayaVA, setDayaVA] = useState(3000);
   const [psh, setPsh] = useState(4.5);
   const [jamOp, setJamOp] = useState(24);
+  const [jarakKeInverter, setJarakKeInverter] = useState(15);
+  const [mountingType, setMountingType] = useState<"aluminum" | "iron">("aluminum");
+  const [estimationMode, setEstimationMode] = useState<"safety" | "optimized">("safety");
   const [selectedPanel, setSelectedPanel] = useState<Panel | null>(
     defaultPanels.find((p) => p.pmax === 550) || defaultPanels[0]
-  );
-  // 'safety' = Margin Engineer (Standard), 'optimized' = Margin Tipis (Competitive)
-  const [estimationMode, setEstimationMode] = useState<"safety" | "optimized">(
-    "safety",
   );
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(
     defaultBatteries.find((b) => b.capacity_ah === 100) || defaultBatteries[0]
@@ -78,7 +82,6 @@ export default function SolarCalculator() {
       } else if (theme === "light") {
         root.classList.remove("dark");
       } else {
-        // Mode System: ikuti preferensi OS
         if (mediaQuery.matches) {
           root.classList.add("dark");
         } else {
@@ -91,20 +94,18 @@ export default function SolarCalculator() {
     localStorage.setItem("solar_calc_theme", theme);
 
     const listener = () => {
-      if (theme === "system") {
-        applyTheme();
-      }
+      if (theme === "system") applyTheme();
     };
 
     mediaQuery.addEventListener("change", listener);
     return () => mediaQuery.removeEventListener("change", listener);
   }, [theme]);
 
-  // Fetch data dari Firebase Firestore (Sinkronisasi Live Data)
+  // Fetch live data dari Firebase Firestore
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("🔥 Menyambung ke Firebase Firestore...");
+        console.log("🔥 Fetching catalog data from Firestore...");
         
         // Fetch Panels
         const panelSnap = await getDocs(collection(db, "database_panel"));
@@ -122,19 +123,15 @@ export default function SolarCalculator() {
           setDbInverters(i);
         }
 
-        // Fetch Kabel (ordered by max_ampere)
-        const kabelSnap = await getDocs(
-          query(collection(db, "database_kabel"), orderBy("max_ampere"))
-        );
+        // Fetch Kabel
+        const kabelSnap = await getDocs(query(collection(db, "database_kabel"), orderBy("max_ampere")));
         if (!kabelSnap.empty) {
           const k = kabelSnap.docs.map((d) => ({ ...d.data() })) as Kabel[];
           setDbKabel(k);
         }
 
-        // Fetch Fuse (ordered by rating_ampere)
-        const fuseSnap = await getDocs(
-          query(collection(db, "database_fuse"), orderBy("rating_ampere"))
-        );
+        // Fetch Fuse
+        const fuseSnap = await getDocs(query(collection(db, "database_fuse"), orderBy("rating_ampere")));
         if (!fuseSnap.empty) {
           const f = fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[];
           setDbFuse(f);
@@ -148,194 +145,63 @@ export default function SolarCalculator() {
           setSelectedBattery((prev) => b.find((item) => item.capacity_ah === (prev?.capacity_ah || 100)) || b[0]);
         }
       } catch (error) {
-        console.warn("⚠️ Menggunakan Local Dataset. Error menyambung ke Firestore:", error);
+        console.warn("⚠️ Menggunakan local dataset fallback. Error Firestore:", error);
       }
     };
     fetchData();
   }, []);
 
-  // LOGIK REKOMENDASI INVERTER (Dinamis mengikuti dayaVA)
+  // Rekomendasi Inverter dinamis (dari modul kalkulator terpisah)
   const selectedInverter = useMemo(() => {
-    if (dbInverters.length === 0) return null;
-    const suitable = dbInverters
-      .filter((inv) => inv.rated_power_va >= dayaVA)
-      .sort((a, b) => a.rated_power_va - b.rated_power_va)[0];
-    return (
-      suitable ||
-      dbInverters.sort((a, b) => b.rated_power_va - a.rated_power_va)[0]
-    );
+    return recommendInverter(dayaVA, dbInverters);
   }, [dayaVA, dbInverters]);
 
-  // Kalkulasi Utama
-  const efisiensi = 0.8;
-  const safetyFactor = 1.2;
-  const energiHarianWh = dayaVA * efisiensi * jamOp;
-  const targetEnergiKwh = energiHarianWh * safetyFactor;
+  // ENGINE KALKULASI UTAMA (Dipisah sepenuhnya ke lib/solarCalculator.ts)
+  const calc = useMemo(() => {
+    return calculateSolarSystem({
+      dayaVA,
+      psh,
+      jamOp,
+      selectedPanel,
+      selectedBattery,
+      selectedInverter,
+      mountingType,
+      jarakKeInverter,
+      estimationMode,
+      dbKabel,
+      dbFuse,
+    });
+  }, [
+    dayaVA,
+    psh,
+    jamOp,
+    selectedPanel,
+    selectedBattery,
+    selectedInverter,
+    mountingType,
+    jarakKeInverter,
+    estimationMode,
+    dbKabel,
+    dbFuse,
+  ]);
 
-  const jmlPanel = Math.ceil(
-    (energiHarianWh * safetyFactor) / (psh * (selectedPanel?.pmax || 550)),
-  );
-
-  const energyPerUnitWh =
-    (selectedBattery?.voltage || 48) * (selectedBattery?.capacity_ah || 100);
-
-  const usableEnergyPerUnitWh =
-    energyPerUnitWh * (selectedBattery?.max_dod || 80);
-
-  const totalPacks =
-    usableEnergyPerUnitWh > 0
-      ? Math.ceil((targetEnergiKwh / usableEnergyPerUnitWh) * 1.25)
-      : 0;
-
-  const displayTargetKwh = targetEnergiKwh / 1000;
-  const weightBattery = totalPacks * (selectedBattery?.weight_kg || 0);
-  const [jarakKeInverter, setJarakKeInverter] = useState(15); // Default 15 meter
-
-  const [mountingType, setMountingType] = useState<"aluminum" | "iron">(
-    "aluminum",
-  );
-
-  // Stream & Wiring Logic
-  const invMaxVoc = selectedInverter?.max_voc_input || 450;
-  const pVoc = selectedPanel?.voc || 49.9;
-  const pIsc = selectedPanel?.isc || 14;
-
-  const maxSeri = Math.floor((invMaxVoc * 0.9) / pVoc);
-  const finalP = Math.ceil(jmlPanel / maxSeri);
-  const finalS = Math.ceil(jmlPanel / finalP);
-  const totalIsc = finalP * pIsc * 1.25; // Safety margin 25% untuk arus pendek
-
-  // Hitung Arus Maksimal dari Baterai ke Inverter
-  const batteryMaxAmpere =
-    (selectedInverter?.rated_power_va || 8000) /
-    (selectedBattery?.voltage || 48) /
-    0.85;
-
-  // Fungsi hitung penampang kabel dan fuse
-  const getCable = (amp: number) => {
-    if (!dbKabel || dbKabel.length === 0) return "N/A";
-    const suitable = dbKabel
-      .filter((k) => k.max_ampere >= amp)
-      .sort((a, b) => a.max_ampere - b.max_ampere);
-    return suitable.length > 0 ? suitable[0].ukuran_mm2 : "Out of Range";
-  };
-
-  const getFuse = (amp: number) => {
-    if (!dbFuse || dbFuse.length === 0) return "N/A";
-    const targetAmp = amp * 1.25; // Safety margin 25%
-    const suitable = dbFuse
-      .filter((f) => f.rating_ampere >= targetAmp)
-      .sort((a, b) => a.rating_ampere - b.rating_ampere);
-    return suitable.length > 0 ? suitable[0].rating_ampere : "Out of Range";
-  };
-
-  const batteryCableSize = getCable(batteryMaxAmpere);
-  const batteryFuseSize = getFuse(batteryMaxAmpere);
-  const pvCableSize = getCable(totalIsc);
-  const pvFuseSize = getFuse(totalIsc);
-
-  // Hitung Luas Area
-  const panelLengthM = (selectedPanel?.length_mm || 2279) / 1000;
-  const panelWidthM = (selectedPanel?.width_mm || 1134) / 1000;
-  const pWeight = selectedPanel?.weight_kg ?? 28;
-  const areaPerPanel = panelLengthM * panelWidthM;
-
-  // Konfigurasi material mounting
-  const mountingOptions = {
-    aluminum: {
-      name: "Aluminium Rail AL6005-T5",
-      weight: 4,
-      desc: "High Corrosion Resistance - Standard",
-    },
-    iron: {
-      name: "Besi Siku L40 (Custom)",
-      weight: 10,
-      desc: "Heavy Duty - Lebih Berat & Ekonomis",
-    },
-  };
-
-  const currentMounting = mountingOptions[mountingType];
-  const totalWeight = jmlPanel * (pWeight + currentMounting.weight);
-
-  const loadPerSqm =
-    areaPerPanel > 0
-      ? (totalWeight / (jmlPanel * areaPerPanel)).toFixed(2)
-      : "0";
-
-  // Faktor pengali berdasarkan mode estimasi
-  const cableMargin = estimationMode === "safety" ? 1.1 : 1.03;
-  const areaMargin = estimationMode === "safety" ? 1.2 : 1.05;
-  const conduitFactor = estimationMode === "safety" ? 0.7 : 0.5;
-
-  const totalKabelPV = jarakKeInverter * 2 * (jmlPanel ?? 1) * cableMargin;
-  const totalAreaNeeded = (jmlPanel * areaPerPanel * areaMargin).toFixed(1);
-  const estimasiPipaConduit = Math.ceil((totalKabelPV * conduitFactor) / 2.9);
-
+  // Handler Export Excel
   const exportToExcel = () => {
-    const bomData = [
-      ["PROJECT QUOTATION - SOLAR PV SYSTEM"],
-      ["Lokasi", "Banjarmasin"],
-      [
-        "Mode Estimasi",
-        estimationMode === "safety"
-          ? "Safety (Standard 10%)"
-          : "Optimized (Competitive 3%)",
-      ],
-      [],
-      ["ITEM DESCRIPTION", "QTY", "UNIT", "SPECIFICATION"],
-      [
-        "Solar Panel",
-        jmlPanel,
-        "Pcs",
-        selectedPanel?.tipe_wp || "Tier-1 Mono PERC",
-      ],
-      [
-        selectedInverter?.merk_tipe || "N/A",
-        1,
-        "Unit",
-        "Smart Hybrid Inverter",
-      ],
-      [
-        `${selectedBattery?.brand || "N/A"} ${selectedBattery?.model || ""}`,
-        totalPacks,
-        "Unit",
-        "Deep Cycle Lithium Iron Phosphate (LiFePO4)",
-      ],
-    ];
-
-    if (mountingType === "aluminum") {
-      bomData.push(
-        [
-          "Aluminium Mounting Rails",
-          Math.ceil(jmlPanel / 2),
-          "Batang",
-          "AL6005-T5 Anodized",
-        ],
-        ["Module Clamps Kit", jmlPanel * 2 + 4, "Pcs", "End & Mid Clamps"],
-        [
-          "Roof Attachment (L-Feet)",
-          Math.ceil(jmlPanel * 1.5),
-          "Pcs",
-          "Stainless Steel Bolt",
-        ],
-      );
-    } else {
-      bomData.push(
-        [
-          "Besi Siku L40 x 40",
-          Math.ceil(jmlPanel * 1.2),
-          "Batang",
-          "Hot Dip Galvanized",
-        ],
-        ["Baut & Dynabolt Set", jmlPanel * 6, "Pcs", "High Tensile M10/M12"],
-      );
-    }
-
-    bomData.push(
-      [],
-      ["TECHNICAL SUMMARY"],
-      ["Total System Weight", `${totalWeight} kg`],
-      ["Roof Load Pressure", `${loadPerSqm} kg/m2`],
+    const bomData = generateBoMData(
+      {
+        dayaVA,
+        psh,
+        jamOp,
+        selectedPanel,
+        selectedBattery,
+        selectedInverter,
+        mountingType,
+        jarakKeInverter,
+        estimationMode,
+        dbKabel,
+        dbFuse,
+      },
+      calc
     );
 
     const ws = XLSX.utils.aoa_to_sheet(bomData);
@@ -348,7 +214,7 @@ export default function SolarCalculator() {
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] p-4 lg:p-12 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* TOP NAVBAR & THEME CONTROLS */}
+        {/* TOP NAVBAR & THEME SWITCHER */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 text-white font-black">
@@ -371,7 +237,7 @@ export default function SolarCalculator() {
             </div>
           </div>
 
-          {/* THEME SWITCHER (Light, Dark, System) */}
+          {/* THEME SELECTOR */}
           <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl border border-slate-300/50 dark:border-slate-700/50 backdrop-blur-sm self-end sm:self-auto">
             <button
               onClick={() => setTheme("light")}
@@ -427,6 +293,7 @@ export default function SolarCalculator() {
                 </h2>
               </div>
 
+              {/* ESTIMATION MODE TOGGLE */}
               <div className="flex bg-slate-100 dark:bg-slate-800/70 p-1 rounded-xl mb-6 border border-transparent dark:border-slate-700/50">
                 <button
                   onClick={() => setEstimationMode("safety")}
@@ -616,7 +483,7 @@ export default function SolarCalculator() {
                 </p>
                 <div className="flex items-baseline gap-3">
                   <h3 className="text-7xl font-black tracking-tighter italic">
-                    {displayTargetKwh.toFixed(2)}
+                    {calc.displayTargetKwh.toFixed(2)}
                   </h3>
                   <span className="text-xl font-light text-slate-400 uppercase tracking-widest font-sans">
                     kWh / Day
@@ -633,7 +500,7 @@ export default function SolarCalculator() {
                   Total PV Array
                 </p>
                 <h4 className="text-2xl font-black text-slate-800 dark:text-white">
-                  {jmlPanel}{" "}
+                  {calc.jmlPanel}{" "}
                   <span className="text-xs font-bold text-slate-400">Pcs</span>
                 </h4>
               </div>
@@ -644,7 +511,7 @@ export default function SolarCalculator() {
                   Storage Capacity
                 </p>
                 <h4 className="text-2xl font-black text-slate-800 dark:text-white">
-                  {totalPacks * (selectedBattery?.capacity_ah || 0)}{" "}
+                  {calc.totalBatteryCapacityAh}{" "}
                   <span className="text-xs font-bold text-slate-400">Ah</span>
                 </h4>
               </div>
@@ -670,6 +537,7 @@ export default function SolarCalculator() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* PV Config */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
                     <LayoutGrid size={14} />
@@ -679,15 +547,16 @@ export default function SolarCalculator() {
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/60">
                     <div className="text-3xl font-black text-slate-800 dark:text-white">
-                      {finalS}S / {finalP}P
+                      {calc.finalS}S / {calc.finalP}P
                     </div>
                     <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 inline-block px-2 py-0.5 rounded-md mt-2 uppercase">
-                      Voc: {(finalS * pVoc).toFixed(1)}V (Safe) <br />
-                      Amp: {(finalP * pIsc).toFixed(1)}A (Safe)
+                      Voc: {calc.stringVoc.toFixed(1)}V {calc.isVocSafe ? "(Safe)" : "(Over)"} <br />
+                      Amp: {calc.arrayIsc.toFixed(1)}A (Array Isc)
                     </p>
                   </div>
                 </div>
 
+                {/* Space Required */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                     <LayoutGrid size={14} />
@@ -697,7 +566,7 @@ export default function SolarCalculator() {
                   </div>
                   <div className="bg-emerald-50/70 dark:bg-emerald-950/30 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/40">
                     <div className="text-3xl font-black text-slate-800 dark:text-white">
-                      {totalAreaNeeded} m²
+                      {calc.totalAreaNeeded} m²
                     </div>
                     <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2 uppercase">
                       Est. Area (+{estimationMode === "safety" ? "20%" : "5%"} Space)
@@ -705,6 +574,7 @@ export default function SolarCalculator() {
                   </div>
                 </div>
 
+                {/* Total Weight */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
                     <LayoutGrid size={14} />
@@ -714,15 +584,16 @@ export default function SolarCalculator() {
                   </div>
                   <div className="bg-purple-50/70 dark:bg-purple-950/30 p-5 rounded-2xl border border-purple-100 dark:border-purple-900/40">
                     <div className="text-3xl font-black text-slate-800 dark:text-white">
-                      {totalWeight} kg
+                      {calc.totalWeight} kg
                     </div>
                     <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-2 uppercase">
                       Roof Load:{" "}
-                      <span className="text-purple-900 dark:text-purple-200 font-black">{loadPerSqm} kg/m²</span>
+                      <span className="text-purple-900 dark:text-purple-200 font-black">{calc.loadPerSqm} kg/m²</span>
                     </p>
                   </div>
                 </div>
 
+                {/* Battery Pack Unit */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                     <Box size={14} />
@@ -732,7 +603,7 @@ export default function SolarCalculator() {
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/60">
                     <div className="text-3xl font-black text-slate-800 dark:text-white">
-                      {totalPacks} Unit
+                      {calc.totalPacks} Unit
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-2 uppercase">
                       {selectedBattery?.type || "LiFePO4"} / {selectedBattery?.capacity_ah || 100}Ah
@@ -740,6 +611,7 @@ export default function SolarCalculator() {
                   </div>
                 </div>
 
+                {/* Battery Weight */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                     <Box size={14} />
@@ -749,15 +621,15 @@ export default function SolarCalculator() {
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/60">
                     <div className="text-3xl font-black text-slate-800 dark:text-white">
-                      {weightBattery} Kg
+                      {calc.weightBattery} Kg
                     </div>
                     <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-2 uppercase">
-                      {selectedBattery?.type || "LiFePO4"} / {selectedBattery?.capacity_ah || 100}Ah
+                      Total Pack Weight
                     </p>
                   </div>
                 </div>
 
-                {/* PROTECTION & WIRING */}
+                {/* Cabling & Protection (CORRECTED PUIL/NEC FORMULA) */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                     <Zap size={14} />
@@ -768,34 +640,34 @@ export default function SolarCalculator() {
                   <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/60 space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
-                        PV Cable
+                        PV Cable (Min KHA {calc.pvDesignAmpere.toFixed(1)}A)
                       </span>
                       <span className="text-xs font-black text-orange-600 dark:text-orange-400">
-                        {pvCableSize} mm²
+                        {calc.pvCableSize} mm²
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
-                        Battery Cable
+                        Battery Cable (Min KHA {calc.batteryDesignAmpere.toFixed(1)}A)
                       </span>
                       <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                        {batteryCableSize} mm²
+                        {calc.batteryCableSize} mm²
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
-                        PV Fuse
+                        PV Fuse / Breaker
                       </span>
                       <span className="text-xs font-black text-orange-600 dark:text-orange-400">
-                        {pvFuseSize} A
+                        {calc.pvFuseSize} A
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">
-                        Battery Fuse
+                        Battery Fuse / Breaker
                       </span>
                       <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                        {batteryFuseSize} A
+                        {calc.batteryFuseSize} A
                       </span>
                     </div>
                   </div>
@@ -849,7 +721,7 @@ export default function SolarCalculator() {
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {jmlPanel}
+                    {calc.jmlPanel}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Lembar
@@ -889,7 +761,7 @@ export default function SolarCalculator() {
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {totalPacks}
+                    {calc.totalPacks}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Unit
@@ -899,7 +771,7 @@ export default function SolarCalculator() {
                   </td>
                 </tr>
 
-                {/* --- LOGIKA MOUNTING DINAMIS --- */}
+                {/* MOUNTING ROWS */}
                 {mountingType === "aluminum" ? (
                   <>
                     <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
@@ -912,7 +784,7 @@ export default function SolarCalculator() {
                         </p>
                       </td>
                       <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {Math.ceil(jmlPanel / 2)}
+                        {Math.ceil(calc.jmlPanel / 2)}
                       </td>
                       <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                         Batang
@@ -932,7 +804,7 @@ export default function SolarCalculator() {
                         </p>
                       </td>
                       <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {jmlPanel * 2 + 4}
+                        {calc.jmlPanel * 2 + 4}
                       </td>
                       <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                         Pcs
@@ -952,7 +824,7 @@ export default function SolarCalculator() {
                         </p>
                       </td>
                       <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {Math.ceil(jmlPanel * 1.5)}
+                        {Math.ceil(calc.jmlPanel * 1.5)}
                       </td>
                       <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                         Pcs
@@ -974,7 +846,7 @@ export default function SolarCalculator() {
                         </p>
                       </td>
                       <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {Math.ceil(jmlPanel * 1.2)}
+                        {Math.ceil(calc.jmlPanel * 1.2)}
                       </td>
                       <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                         Batang
@@ -994,7 +866,7 @@ export default function SolarCalculator() {
                         </p>
                       </td>
                       <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {jmlPanel * 6}
+                        {calc.jmlPanel * 6}
                       </td>
                       <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                         Pcs
@@ -1036,7 +908,7 @@ export default function SolarCalculator() {
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {jmlPanel * 2 + 2}
+                    {calc.jmlPanel * 2 + 2}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Pair
@@ -1056,7 +928,7 @@ export default function SolarCalculator() {
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {jmlPanel * 2}
+                    {calc.jmlPanel * 2}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Pcs
@@ -1069,14 +941,14 @@ export default function SolarCalculator() {
                 <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                   <td className="py-5">
                     <p className="font-black text-slate-800 dark:text-white">
-                      Solar PV Cable {getCable(totalIsc)}mm²
+                      Solar PV Cable {calc.pvCableSize}mm²
                     </p>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
                       XLPO Insulated / Halogen Free (Red & Black)
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {Math.ceil(totalKabelPV)}
+                    {Math.ceil(calc.totalKabelPV)}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Meter
@@ -1096,7 +968,7 @@ export default function SolarCalculator() {
                     </p>
                   </td>
                   <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {estimasiPipaConduit}
+                    {calc.estimasiPipaConduit}
                   </td>
                   <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     Batang
@@ -1110,10 +982,10 @@ export default function SolarCalculator() {
           </div>
 
           <TechnicalSummary
-            loadPerSqm={loadPerSqm}
+            loadPerSqm={calc.loadPerSqm}
             estimationMode={estimationMode}
-            totalPacks={totalPacks}
-            pvCableSize={pvCableSize}
+            totalPacks={calc.totalPacks}
+            pvCableSize={calc.pvCableSize}
           />
 
           <div className="mt-10 p-8 bg-slate-900 dark:bg-slate-950 border border-transparent dark:border-slate-800 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-6">
