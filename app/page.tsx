@@ -583,26 +583,26 @@ export default function SolarCalculator() {
             </div>
 
             {/* SECTION: FINANCIAL ANALYSIS & ROI (POINT 1 UPGRADE) */}
-            <div className="bg-gradient-to-br from-emerald-950/20 via-slate-900/40 to-slate-900/60 dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-950 rounded-[3rem] p-10 border border-emerald-500/20 shadow-xl space-y-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/20 dark:border-slate-800 pb-6">
+            <div className="bg-gradient-to-br from-emerald-950/10 via-slate-900/20 to-slate-900/40 dark:from-emerald-950/40 dark:via-slate-900/90 dark:to-slate-950 rounded-[3rem] p-6 lg:p-10 border border-emerald-500/20 dark:border-emerald-500/30 shadow-2xl space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20">
-                    <TrendingUp size={22} />
+                  <div className="w-12 h-12 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/25">
+                    <TrendingUp size={24} />
                   </div>
                   <div>
                     <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
                       Financial Analysis & ROI Projection
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Estimasi Penghematan Tagihan PLN & Masa Balik Modal
+                      Estimasi Penghematan Tagihan PLN & Masa Balik Modal Investasi
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
-                  <Coins size={14} className="text-emerald-500" />
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                    Tarif: Rp {tarifPLN.toLocaleString("id-ID")}/kWh
+                <div className="flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 px-3.5 py-2 rounded-xl self-start sm:self-auto">
+                  <Coins size={15} className="text-emerald-500" />
+                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-300">
+                    Tarif PLN: Rp {tarifPLN.toLocaleString("id-ID")}/kWh
                   </span>
                 </div>
               </div>
@@ -610,85 +610,101 @@ export default function SolarCalculator() {
               {/* 4 HIGHLIGHT FINANCIAL CARDS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 {/* 1. Monthly Savings */}
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl border border-slate-100 dark:border-slate-700/60 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Hemat / Bulan
-                    </span>
-                    <PiggyBank size={18} className="text-emerald-500" />
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-emerald-500/30 dark:border-emerald-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Hemat / Bulan
+                      </span>
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                        <PiggyBank size={16} />
+                      </div>
+                    </div>
+                    <h4 className="text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                      {formatRupiah(calc.financial.penghematanBulanRp)}
+                    </h4>
                   </div>
-                  <h4 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                    {formatRupiah(calc.financial.penghematanBulanRp)}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium">
                     {formatRupiah(calc.financial.penghematanTahunRp)} / tahun
                   </p>
                 </div>
 
                 {/* 2. Payback Period */}
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl border border-slate-100 dark:border-slate-700/60 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Payback Period
-                    </span>
-                    <TrendingUp size={18} className="text-blue-500" />
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-blue-500/30 dark:border-blue-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Payback Period
+                      </span>
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <TrendingUp size={16} />
+                      </div>
+                    </div>
+                    <h4 className="text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
+                      {calc.financial.paybackYears} <span className="text-sm font-bold text-slate-400">Tahun</span>
+                    </h4>
                   </div>
-                  <h4 className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                    {calc.financial.paybackYears} <span className="text-base font-bold">Tahun</span>
-                  </h4>
-                  <p className="text-[10px] text-blue-500 dark:text-blue-400 mt-1.5 font-bold">
+                  <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-bold">
                     ROI 25 Thn: +{calc.financial.roiPercent25Years}%
                   </p>
                 </div>
 
                 {/* 3. Total Capex Investment */}
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl border border-slate-100 dark:border-slate-700/60 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Estimasi Capex
-                    </span>
-                    <Receipt size={18} className="text-purple-500" />
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-purple-500/30 dark:border-purple-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Estimasi Capex
+                      </span>
+                      <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500">
+                        <Receipt size={16} />
+                      </div>
+                    </div>
+                    <h4 className="text-lg xl:text-xl 2xl:text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+                      {formatRupiah(calc.financial.totalInvestasi)}
+                    </h4>
                   </div>
-                  <h4 className="text-2xl font-black text-slate-800 dark:text-white">
-                    {formatRupiah(calc.financial.totalInvestasi)}
-                  </h4>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium">
-                    Hardware + Aksesoris + Jasa
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium">
+                    Hardware + BoM + Jasa
                   </p>
                 </div>
 
                 {/* 4. Green Impact */}
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl border border-slate-100 dark:border-slate-700/60 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Green Energy
-                    </span>
-                    <Leaf size={18} className="text-emerald-500" />
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-teal-500/30 dark:border-teal-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Green Energy
+                      </span>
+                      <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-500">
+                        <Leaf size={16} />
+                      </div>
+                    </div>
+                    <h4 className="text-xl xl:text-2xl font-black text-teal-600 dark:text-teal-400 tracking-tight">
+                      {calc.green.co2SavedKgPerYear.toLocaleString("id-ID")}{" "}
+                      <span className="text-xs font-bold text-slate-400">kg/thn</span>
+                    </h4>
                   </div>
-                  <h4 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                    {calc.green.co2SavedKgPerYear.toLocaleString("id-ID")}{" "}
-                    <span className="text-xs font-bold">kg/thn</span>
-                  </h4>
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1.5 font-bold flex items-center gap-1">
-                    <Trees size={12} /> Setara {calc.green.treesEquivalent} Pohon/thn
+                  <p className="text-[11px] text-teal-600 dark:text-teal-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-bold flex items-center gap-1">
+                    <Trees size={13} /> Setara {calc.green.treesEquivalent} Pohon/thn
                   </p>
                 </div>
               </div>
 
               {/* 25-YEAR LIFECYCLE SUMMARY BANNER */}
-              <div className="p-6 bg-slate-100/80 dark:bg-slate-900/90 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="p-6 bg-white/60 dark:bg-slate-900/90 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 backdrop-blur-sm">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Total Estimasi Penghematan Bersih (25 Tahun Lifecycle PLTS)
                   </p>
-                  <h4 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <h4 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tracking-tight">
                     {formatRupiah(calc.financial.penghematan25TahunRp - calc.financial.totalInvestasi)}
                   </h4>
                 </div>
 
-                <div className="text-left md:text-right text-xs text-slate-500 dark:text-slate-400">
-                  <p>Reduksi $CO_2$ 25 Tahun: <span className="font-bold text-slate-800 dark:text-slate-200">{calc.green.co2SavedTon25Years} Ton</span></p>
-                  <p>Garansi Panel: <span className="font-bold text-slate-800 dark:text-slate-200">25 Tahun Linear Power Output</span></p>
+                <div className="text-left md:text-right text-xs space-y-1 text-slate-600 dark:text-slate-400 border-t md:border-t-0 pt-3 md:pt-0 border-slate-200 dark:border-slate-800 w-full md:w-auto">
+                  <p>Reduksi CO₂ (25 Tahun): <span className="font-bold text-slate-900 dark:text-slate-100">{calc.green.co2SavedTon25Years} Ton</span></p>
+                  <p>Garansi Panel: <span className="font-bold text-slate-900 dark:text-slate-100">25 Tahun Linear Power Output</span></p>
                 </div>
               </div>
             </div>
