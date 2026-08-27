@@ -142,13 +142,23 @@ export function recommendInverter(dayaVA: number, dbInverters: Inverter[]): Inve
 export function selectCable(requiredAmpere: number, dbKabel: Kabel[]): { size: number | string; maxAmp: number } {
   if (!dbKabel || dbKabel.length === 0) return { size: "N/A", maxAmp: 0 };
 
-  const suitable = dbKabel
-    .filter((k) => k.max_ampere >= requiredAmpere)
-    .sort((a, b) => a.max_ampere - b.max_ampere);
+  const sorted = [...dbKabel].sort((a, b) => a.max_ampere - b.max_ampere);
+  const suitable = sorted.filter((k) => k.max_ampere >= requiredAmpere);
 
   if (suitable.length > 0) {
     return { size: suitable[0].ukuran_mm2, maxAmp: suitable[0].max_ampere };
   }
+
+  // Jika arus melebihi kabel tunggal terbesar, hitung konfigurasi kabel paralel (misal 2x 50 mm²)
+  const maxSingle = sorted[sorted.length - 1];
+  if (maxSingle && maxSingle.max_ampere > 0) {
+    const parallelCount = Math.ceil(requiredAmpere / maxSingle.max_ampere);
+    return {
+      size: `${parallelCount}x ${maxSingle.ukuran_mm2}`,
+      maxAmp: parallelCount * maxSingle.max_ampere,
+    };
+  }
+
   return { size: "Out of Range", maxAmp: 0 };
 }
 
