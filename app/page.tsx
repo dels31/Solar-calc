@@ -22,6 +22,7 @@ import {
   formatRupiah,
   PLN_TARIFF_PRESETS,
 } from "@/lib/solarCalculator";
+import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
 import {
   Sun,
   Moon,
@@ -36,6 +37,11 @@ import {
   Clock,
   Weight,
   FileSpreadsheet,
+  FileText,
+  Download,
+  UserCheck,
+  MapPin,
+  X,
   TrendingUp,
   Leaf,
   Coins,
@@ -81,6 +87,13 @@ export default function SolarCalculator() {
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(
     defaultBatteries.find((b) => b.capacity_ah === 100) || defaultBatteries[0]
   );
+
+  // State PDF Proposal Modal
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [clientName, setClientName] = useState("Bpk/Ibu Klien");
+  const [projectName, setProjectName] = useState("Instalasi PLTS Mandiri");
+  const [projectLocation, setProjectLocation] = useState("Banjarmasin, Kalimantan Selatan");
+  const [preparedBy, setPreparedBy] = useState("Solar Specialist Engineer");
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
   useEffect(() => {
@@ -1108,7 +1121,7 @@ export default function SolarCalculator() {
             pvCableSize={calc.pvCableSize}
           />
 
-          <div className="mt-10 p-8 bg-slate-900 dark:bg-slate-950 border border-transparent dark:border-slate-800 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="mt-10 p-8 bg-slate-900 dark:bg-slate-950 border border-transparent dark:border-slate-800 rounded-[2.5rem] flex flex-col lg:flex-row justify-between items-center gap-6">
             <div>
               <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] text-[10px] mb-2">
                 Technical & Financial Specification Ready
@@ -1117,15 +1130,173 @@ export default function SolarCalculator() {
                 Total Est. Investasi: {formatRupiah(calc.financial.totalInvestasi)}
               </h4>
             </div>
-            <button
-              onClick={exportToExcel}
-              className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center gap-2 cursor-pointer"
-            >
-              <FileSpreadsheet size={18} />
-              Export Full Quotation to Sheet
-            </button>
+
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+              {/* BUTTON 1: EXPORT PDF PROPOSAL (POINT 2) */}
+              <button
+                onClick={() => setIsPdfModalOpen(true)}
+                className="flex-1 sm:flex-none px-6 py-4 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              >
+                <FileText size={18} />
+                Export PDF Proposal
+              </button>
+
+              {/* BUTTON 2: EXPORT EXCEL BOM */}
+              <button
+                onClick={exportToExcel}
+                className="flex-1 sm:flex-none px-6 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+              >
+                <FileSpreadsheet size={18} />
+                Export Sheet (BoM)
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* MODAL: CUSTOMIZE PDF PROPOSAL (POINT 2) */}
+        {isPdfModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative space-y-6">
+              
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center">
+                    <FileText size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                      Generate PDF Proposal
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Format Penawaran Resmi & Spesifikasi Teknis PLTS
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPdfModalOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Form Inputs */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <UserCheck size={12} className="text-rose-500" /> Nama Klien / Perusahaan
+                  </label>
+                  <input
+                    type="text"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Contoh: Bpk. H. Hendra / PT. Energi Mandiri"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none border border-slate-200 dark:border-slate-700 focus:border-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <LayoutGrid size={12} className="text-rose-500" /> Judul Proyek
+                  </label>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="Contoh: Instalasi PLTS Hybrid 3000 VA Atap Rumah"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none border border-slate-200 dark:border-slate-700 focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                      <MapPin size={12} className="text-rose-500" /> Lokasi Pemasangan
+                    </label>
+                    <input
+                      type="text"
+                      value={projectLocation}
+                      onChange={(e) => setProjectLocation(e.target.value)}
+                      placeholder="Banjarmasin, Kalsel"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none border border-slate-200 dark:border-slate-700 focus:border-rose-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                      <ShieldCheck size={12} className="text-rose-500" /> Dibuat Oleh (Engineer)
+                    </label>
+                    <input
+                      type="text"
+                      value={preparedBy}
+                      onChange={(e) => setPreparedBy(e.target.value)}
+                      placeholder="Solar Specialist"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none border border-slate-200 dark:border-slate-700 focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                {/* PDF Highlights Preview */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 text-xs space-y-1.5 text-slate-600 dark:text-slate-300">
+                  <p className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1">
+                    📄 Dokumen PDF ini memuat secara otomatis:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    <li>Kop Surat Resmi & Nomor Referensi Quotation Otomatis.</li>
+                    <li>Executive Summary ROI, Capex ({formatRupiah(calc.financial.totalInvestasi)}), dan Emisi CO₂.</li>
+                    <li>Tabel Spesifikasi Teknis, Konfigurasi String & Proteksi.</li>
+                    <li>Tabel BoM Komponen berharga lengkap & Klausul Garansi 25 Thn.</li>
+                    <li>Kolom Tanda Tangan Persetujuan Klien & Engineer.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setIsPdfModalOpen(false)}
+                  className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    generateSolarPDFProposal(
+                      {
+                        dayaVA,
+                        psh,
+                        jamOp,
+                        selectedPanel,
+                        selectedBattery,
+                        selectedInverter,
+                        mountingType,
+                        jarakKeInverter,
+                        estimationMode,
+                        dbKabel,
+                        dbFuse,
+                        tarifPLN,
+                      },
+                      calc,
+                      {
+                        clientName,
+                        projectName,
+                        projectLocation,
+                        preparedBy,
+                      }
+                    );
+                    setIsPdfModalOpen(false);
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 cursor-pointer uppercase tracking-wider"
+                >
+                  <Download size={15} />
+                  Download PDF Sekarang
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
