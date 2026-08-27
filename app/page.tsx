@@ -24,6 +24,7 @@ import {
   PLN_TARIFF_PRESETS,
 } from "@/lib/solarCalculator";
 import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
+import SystemSchematicDiagram from "@/components/SystemSchematicDiagram";
 import {
   Sun,
   Moon,
@@ -891,6 +892,25 @@ export default function SolarCalculator() {
             </div>
           </div>
         </div>
+
+        {/* SECTION: SYSTEM SCHEMATIC & WIRING DIAGRAM (POINT 3 UPGRADE) */}
+        <SystemSchematicDiagram
+          inputs={{
+            dayaVA,
+            psh,
+            jamOp,
+            selectedPanel,
+            selectedBattery,
+            selectedInverter,
+            mountingType,
+            jarakKeInverter,
+            estimationMode,
+            dbKabel,
+            dbFuse,
+            tarifPLN,
+          }}
+          results={calc}
+        />
 
         {/* QUICK QUOTATION / BILL OF MATERIALS */}
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200/60 dark:border-slate-800 shadow-sm">
