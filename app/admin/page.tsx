@@ -9,9 +9,11 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
+  updateDoc,
   doc,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   defaultPanels,
@@ -39,12 +41,26 @@ import {
   Search,
   CheckCircle2,
   X,
-  Sliders,
   Moon,
   Laptop,
+  Users,
+  Crown,
+  MessageCircle,
 } from "lucide-react";
 
-type ActiveTab = "panels" | "inverters" | "batteries" | "cables" | "fuses";
+export interface AdminUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL?: string | null;
+  isPro: boolean;
+  plan: "free" | "pro";
+  proPlanType?: "project" | "monthly" | "lifetime";
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+type ActiveTab = "panels" | "inverters" | "batteries" | "cables" | "fuses" | "users";
 type ThemeMode = "light" | "dark" | "system";
 type CatalogItemForm = Record<string, string | number | undefined>;
 
@@ -67,6 +83,8 @@ export default function AdminCatalogPage() {
   const [batteries, setBatteries] = useState<Battery[]>(defaultBatteries);
   const [cables, setCables] = useState<Kabel[]>(defaultKabel);
   const [fuses, setFuses] = useState<Fuse[]>(defaultFuse);
+  const [usersList, setUsersList] = useState<AdminUser[]>([]);
+  const [userFilter, setUserFilter] = useState<"all" | "free" | "pro">("all");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,18 +113,22 @@ export default function AdminCatalogPage() {
   // Fetch Live Collections from Firestore
   const reloadData = async () => {
     try {
-      const [panelSnap, inverterSnap, batterySnap, cableSnap, fuseSnap] = await Promise.all([
+      const [panelSnap, inverterSnap, batterySnap, cableSnap, fuseSnap, userSnap] = await Promise.all([
         getDocs(collection(db, "database_panel")),
         getDocs(collection(db, "database_inverter")),
         getDocs(collection(db, "database_batteries")),
         getDocs(query(collection(db, "database_kabel"), orderBy("max_ampere"))),
         getDocs(query(collection(db, "database_fuse"), orderBy("rating_ampere"))),
+        getDocs(collection(db, "users")),
       ]);
       if (!panelSnap.empty) setPanels(panelSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Panel[]);
       if (!inverterSnap.empty) setInverters(inverterSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Inverter[]);
       if (!batterySnap.empty) setBatteries(batterySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Battery[]);
       if (!cableSnap.empty) setCables(cableSnap.docs.map((d) => ({ ...d.data() })) as Kabel[]);
       if (!fuseSnap.empty) setFuses(fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[]);
+      if (!userSnap.empty) {
+        setUsersList(userSnap.docs.map((d) => ({ uid: d.id, ...d.data() })) as AdminUser[]);
+      }
     } catch (err) {
       console.warn("Gagal memuat Firestore:", err);
     }
@@ -116,12 +138,13 @@ export default function AdminCatalogPage() {
     let isMounted = true;
     const initFetch = async () => {
       try {
-        const [panelSnap, inverterSnap, batterySnap, cableSnap, fuseSnap] = await Promise.all([
+        const [panelSnap, inverterSnap, batterySnap, cableSnap, fuseSnap, userSnap] = await Promise.all([
           getDocs(collection(db, "database_panel")),
           getDocs(collection(db, "database_inverter")),
           getDocs(collection(db, "database_batteries")),
           getDocs(query(collection(db, "database_kabel"), orderBy("max_ampere"))),
           getDocs(query(collection(db, "database_fuse"), orderBy("rating_ampere"))),
+          getDocs(collection(db, "users")),
         ]);
         if (!isMounted) return;
         if (!panelSnap.empty) setPanels(panelSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Panel[]);
@@ -129,8 +152,11 @@ export default function AdminCatalogPage() {
         if (!batterySnap.empty) setBatteries(batterySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Battery[]);
         if (!cableSnap.empty) setCables(cableSnap.docs.map((d) => ({ ...d.data() })) as Kabel[]);
         if (!fuseSnap.empty) setFuses(fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[]);
+        if (!userSnap.empty) {
+          setUsersList(userSnap.docs.map((d) => ({ uid: d.id, ...d.data() })) as AdminUser[]);
+        }
       } catch (err) {
-        console.warn("Gagal inisialisasi Firestore:", err);
+        console.warn("Firestore offline, menggunakan default catalog data.", err);
       }
     };
     initFetch();
@@ -141,35 +167,63 @@ export default function AdminCatalogPage() {
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setStatusMessage({ text, type });
-    setTimeout(() => setStatusMessage(null), 3500);
+    setTimeout(() => setStatusMessage(null), 4000);
   };
 
-  // Delete Handlers
-  const handleDelete = async (collectionName: string, id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus komponen ini dari database?")) return;
+  // User Plan Approval Handler (ACC Pro)
+  const handleUpdateUserPlan = async (
+    targetUser: AdminUser,
+    isPro: boolean,
+    proPlanType: "project" | "monthly" | "lifetime" = "monthly"
+  ) => {
     try {
-      await deleteDoc(doc(db, collectionName, id));
-      showToast("Komponen berhasil dihapus dari Firestore!");
-      reloadData();
+      const userDocRef = doc(db, "users", targetUser.uid);
+      await updateDoc(userDocRef, {
+        isPro,
+        plan: isPro ? "pro" : "free",
+        proPlanType: isPro ? proPlanType : null,
+        updatedAt: serverTimestamp(),
+      });
+      showToast(
+        `✅ Akun ${targetUser.displayName || targetUser.email} berhasil diubah ke ${
+          isPro ? `PRO (${proPlanType.toUpperCase()})` : "FREE"
+        }!`
+      );
+      await reloadData();
     } catch (err) {
       console.error(err);
-      showToast("Gagal menghapus komponen.", "error");
+      const e = err as { message?: string };
+      showToast("Gagal update status user: " + (e.message || ""), "error");
     }
   };
 
-  // Save / Update Handler
+  // Delete Action
+  const handleDelete = async (collectionName: string, id: string) => {
+    if (!confirm(`Hapus item ID: ${id} dari database?`)) return;
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+      showToast(`Item ${id} berhasil dihapus dari database.`);
+      reloadData();
+    } catch (err) {
+      console.error(err);
+      showToast("Gagal menghapus item dari database.", "error");
+    }
+  };
+
+  // Save / Update Action
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
+
     try {
       if (activeTab === "panels") {
-        const id = (editingItem.id as string) || `panel-${editingItem.pmax}`;
+        const id = (editingItem.id as string) || `panel-${Date.now()}`;
         const data: Panel = {
           id,
           tipe_wp: String(editingItem.tipe_wp || ""),
-          pmax: Number(editingItem.pmax),
-          voc: Number(editingItem.voc),
-          isc: Number(editingItem.isc),
+          pmax: Number(editingItem.pmax || 550),
+          voc: Number(editingItem.voc || 49.8),
+          isc: Number(editingItem.isc || 14.0),
           length_mm: Number(editingItem.length_mm || 2278),
           width_mm: Number(editingItem.width_mm || 1134),
           weight_kg: Number(editingItem.weight_kg || 28),
@@ -177,26 +231,26 @@ export default function AdminCatalogPage() {
         };
         await setDoc(doc(db, "database_panel", id), data);
       } else if (activeTab === "inverters") {
-        const id = (editingItem.id as string) || `inv-${editingItem.rated_power_va}va`;
+        const id = (editingItem.id as string) || `inv-${Date.now()}`;
         const data: Inverter = {
           id,
           merk_tipe: String(editingItem.merk_tipe || ""),
-          rated_power_va: Number(editingItem.rated_power_va),
-          max_voc_input: Number(editingItem.max_voc_input),
-          max_isc_input: Number(editingItem.max_isc_input),
+          rated_power_va: Number(editingItem.rated_power_va || 5000),
+          max_voc_input: Number(editingItem.max_voc_input || 450),
+          max_isc_input: Number(editingItem.max_isc_input || 22),
           system_voltage: Number(editingItem.system_voltage || 48),
-          price_estimate: Number(editingItem.price_estimate || 15000000),
+          price_estimate: Number(editingItem.price_estimate || 17500000),
         };
         await setDoc(doc(db, "database_inverter", id), data);
       } else if (activeTab === "batteries") {
-        const id = (editingItem.id as string) || `bat-${editingItem.capacity_ah}ah`;
+        const id = (editingItem.id as string) || `bat-${Date.now()}`;
         const data: Battery = {
           id,
           brand: String(editingItem.brand || ""),
           model: String(editingItem.model || ""),
           type: String(editingItem.type || "LiFePO4"),
           voltage: Number(editingItem.voltage || 48),
-          capacity_ah: Number(editingItem.capacity_ah),
+          capacity_ah: Number(editingItem.capacity_ah || 100),
           weight_kg: Number(editingItem.weight_kg || 55),
           max_dod: Number(editingItem.max_dod || 0.8),
           max_discharge: Number(editingItem.max_discharge || editingItem.capacity_ah),
@@ -228,6 +282,17 @@ export default function AdminCatalogPage() {
     }
   };
 
+  const filteredUsers = usersList.filter((u) => {
+    const matchesSearch =
+      (u.displayName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.uid.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (userFilter === "pro") return u.isPro;
+    if (userFilter === "free") return !u.isPro;
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] p-4 lg:p-10 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -255,13 +320,13 @@ export default function AdminCatalogPage() {
 
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                Catalog Admin Center
+                Admin Center & User Approval
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 border border-purple-300/40">
-                  🗄️ Firestore Live CRUD
+                  🗄️ Firestore Live
                 </span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Manajemen Spesifikasi & Estimasi Harga Komponen 7 Layers IT Solutions
+                Manajemen Produk Katalog & Approval Plan Pembayaran QRIS (7 Layers IT Solutions)
               </p>
             </div>
           </div>
@@ -283,19 +348,11 @@ export default function AdminCatalogPage() {
               </button>
               <button
                 onClick={() => setTheme("system")}
-                className={`p-1.5 rounded-lg text-xs font-bold transition-all ${theme === "system" ? "bg-white dark:bg-slate-700 text-emerald-500 shadow-sm" : "text-slate-400"}`}
+                className={`p-1.5 rounded-lg text-xs font-bold transition-all ${theme === "system" ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-slate-400"}`}
               >
                 <Laptop size={14} />
               </button>
             </div>
-
-            <Link
-              href="/"
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5"
-            >
-              <Sliders size={14} />
-              Buka Kalkulator
-            </Link>
           </div>
         </header>
 
@@ -313,9 +370,22 @@ export default function AdminCatalogPage() {
 
         {/* CATEGORY TABS & ACTION BAR */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200/80 dark:border-slate-800 shadow-md space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
             {/* TABS */}
             <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+              {/* USERS APPROVAL TAB */}
+              <button
+                onClick={() => { setActiveTab("users"); setSearchQuery(""); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  activeTab === "users"
+                    ? "bg-linear-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <Users size={15} />
+                <span>User & ACC Plan ({usersList.length})</span>
+              </button>
+
               <button
                 onClick={() => { setActiveTab("panels"); setSearchQuery(""); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -378,73 +448,235 @@ export default function AdminCatalogPage() {
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari komponen..."
+                  placeholder={activeTab === "users" ? "Cari nama / email user..." : "Cari item katalog..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 outline-none focus:border-purple-500"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 outline-none focus:border-purple-500"
                 />
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingItem({});
-                  setIsModalOpen(true);
-                }}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-purple-600/20 active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
-              >
-                <Plus size={16} /> Tambah
-              </button>
+              {activeTab !== "users" && (
+                <button
+                  onClick={() => {
+                    setEditingItem({});
+                    setIsModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <Plus size={15} />
+                  <span>Tambah Produk</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* TABLE CONTENT */}
-          <div className="overflow-x-auto">
-            {activeTab === "panels" && (
+          {/* TAB 0: USER APPROVAL & PLAN MANAGEMENT */}
+          {activeTab === "users" && (
+            <div className="space-y-4">
+              {/* USER FILTER TABS */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setUserFilter("all")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    userFilter === "all"
+                      ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  }`}
+                >
+                  Semua ({usersList.length})
+                </button>
+                <button
+                  onClick={() => setUserFilter("free")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    userFilter === "free"
+                      ? "bg-amber-500 text-slate-950 font-black"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  }`}
+                >
+                  Free / Menunggu ACC ({usersList.filter((u) => !u.isPro).length})
+                </button>
+                <button
+                  onClick={() => setUserFilter("pro")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    userFilter === "pro"
+                      ? "bg-emerald-500 text-slate-950 font-black"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                  }`}
+                >
+                  👑 Pro Aktif ({usersList.filter((u) => u.isPro).length})
+                </button>
+              </div>
+
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 dark:text-slate-500">
+                  <Users size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-bold">Tidak ada data pengguna ditemukan.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        <th className="pb-3">Pengguna</th>
+                        <th className="pb-3">Email</th>
+                        <th className="pb-3">Status Plan</th>
+                        <th className="pb-3">Tipe Paket</th>
+                        <th className="pb-3 text-right">Aksi ACC / Manajemen Plan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
+                      {filteredUsers.map((u) => {
+                        const waConfirmMessage = `Halo ${u.displayName || "Kak"}, pembayaran QRIS Anda sudah diverifikasi dan akun ${u.email} telah kami ACC menjadi PRO Member di Solar Calc Pro. Silakan nikmati akses proposal PDF & BoM Excel tanpa batas! Terima kasih - 7 Layers IT Solutions 🙏`;
+                        const waDirectUrl = `https://wa.me/6281993507390?text=${encodeURIComponent(waConfirmMessage)}`;
+
+                        return (
+                          <tr key={u.uid} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-4">
+                              <div className="flex items-center gap-3">
+                                {u.photoURL ? (
+                                  <Image
+                                    src={u.photoURL}
+                                    alt={u.displayName || "User"}
+                                    width={32}
+                                    height={32}
+                                    className="w-8 h-8 rounded-full object-cover border border-emerald-500"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 bg-emerald-500 text-slate-950 rounded-full flex items-center justify-center font-black text-xs">
+                                    {(u.displayName || u.email || "U").charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="font-black text-slate-900 dark:text-white">{u.displayName || "User"}</p>
+                                  <p className="text-[10px] text-slate-400 font-mono">UID: {u.uid.slice(0, 10)}...</p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-4 text-slate-600 dark:text-slate-300">
+                              {u.email || "-"}
+                            </td>
+
+                            <td className="py-4">
+                              {u.isPro ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-black text-[10px] uppercase border border-emerald-300/40">
+                                  <Crown size={12} /> PRO MEMBER
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px] uppercase border border-slate-300/40">
+                                  FREE (Menunggu ACC)
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-4 text-[11px] text-slate-500 dark:text-slate-400">
+                              {u.proPlanType === "monthly" && "📅 Pro Bulanan (Rp 99rb)"}
+                              {u.proPlanType === "project" && "⚡ Single Project (Rp 25rb)"}
+                              {u.proPlanType === "lifetime" && "💎 Pro Lifetime"}
+                              {!u.proPlanType && "-"}
+                            </td>
+
+                            <td className="py-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {/* ACC PRO BULANAN */}
+                                <button
+                                  onClick={() => handleUpdateUserPlan(u, true, "monthly")}
+                                  className="px-2.5 py-1.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 text-[10px] font-black rounded-lg transition-all shadow-xs active:scale-95 cursor-pointer flex items-center gap-1"
+                                  title="ACC Plan Pro Bulanan (Rp 99.000)"
+                                >
+                                  <Crown size={12} />
+                                  <span>ACC Pro (Bulanan)</span>
+                                </button>
+
+                                {/* ACC PRO SINGLE */}
+                                <button
+                                  onClick={() => handleUpdateUserPlan(u, true, "project")}
+                                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black rounded-lg transition-all shadow-xs active:scale-95 cursor-pointer flex items-center gap-1"
+                                  title="ACC Plan Single Project (Rp 25.000)"
+                                >
+                                  <Zap size={12} />
+                                  <span>ACC Single (25rb)</span>
+                                </button>
+
+                                {/* REVOKE TO FREE */}
+                                {u.isPro && (
+                                  <button
+                                    onClick={() => handleUpdateUserPlan(u, false)}
+                                    className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 text-[10px] font-bold rounded-lg border border-rose-200 dark:border-rose-800 transition-all cursor-pointer"
+                                    title="Cabut akses / Downgrade ke Free"
+                                  >
+                                    Cabut Akses
+                                  </button>
+                                )}
+
+                                {/* DIRECT WHATSAPP CONFIRMATION */}
+                                <a
+                                  href={waDirectUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 rounded-lg border border-emerald-300/40 transition-all"
+                                  title="Kirim Konfirmasi ke WA"
+                                >
+                                  <MessageCircle size={14} />
+                                </a>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 1: SOLAR PANELS */}
+          {activeTab === "panels" && (
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-black tracking-wider">
-                    <th className="pb-3 px-3">Tipe / Merk</th>
-                    <th className="pb-3 px-3 text-center">Pmax (Wp)</th>
-                    <th className="pb-3 px-3 text-center">Voc (V)</th>
-                    <th className="pb-3 px-3 text-center">Isc (A)</th>
-                    <th className="pb-3 px-3 text-center">Dimensi (mm)</th>
-                    <th className="pb-3 px-3 text-center">Berat (kg)</th>
-                    <th className="pb-3 px-3 text-right">Est. Harga (IDR)</th>
-                    <th className="pb-3 px-3 text-center w-24">Aksi</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="pb-3">Tipe / Model Panel</th>
+                    <th className="pb-3 text-center">Pmax (Wp)</th>
+                    <th className="pb-3 text-center">Voc (V)</th>
+                    <th className="pb-3 text-center">Isc (A)</th>
+                    <th className="pb-3 text-center">Dimensi (L x W mm)</th>
+                    <th className="pb-3 text-center">Berat (kg)</th>
+                    <th className="pb-3 text-right">Est. Harga Satuan</th>
+                    <th className="pb-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
                   {panels
                     .filter((p) => p.tipe_wp.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                          <Sun size={15} className="text-orange-500" />
-                          <span>{item.tipe_wp}</span>
+                    .map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-4 text-slate-900 dark:text-white">{p.tipe_wp}</td>
+                        <td className="py-4 text-center text-orange-500">{p.pmax} Wp</td>
+                        <td className="py-4 text-center">{p.voc} V</td>
+                        <td className="py-4 text-center">{p.isc} A</td>
+                        <td className="py-4 text-center text-slate-400 font-mono text-[11px]">{p.length_mm} x {p.width_mm}</td>
+                        <td className="py-4 text-center">{p.weight_kg} kg</td>
+                        <td className="py-4 text-right text-emerald-600 dark:text-emerald-400 font-black">
+                          {formatRupiah(p.price_estimate || 1850000)}
                         </td>
-                        <td className="py-3.5 px-3 text-center font-black text-orange-600 dark:text-orange-400">{item.pmax} Wp</td>
-                        <td className="py-3.5 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{item.voc} V</td>
-                        <td className="py-3.5 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{item.isc} A</td>
-                        <td className="py-3.5 px-3 text-center text-slate-500">{item.length_mm} x {item.width_mm}</td>
-                        <td className="py-3.5 px-3 text-center text-slate-500">{item.weight_kg} kg</td>
-                        <td className="py-3.5 px-3 text-right font-black text-slate-900 dark:text-white">
-                          {formatRupiah(item.price_estimate || 1850000)}
-                        </td>
-                        <td className="py-3.5 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => { setEditingItem({ ...item }); setIsModalOpen(true); }}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-purple-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Edit"
+                              onClick={() => {
+                                setEditingItem({ ...p });
+                                setIsModalOpen(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-purple-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Edit2 size={13} />
+                              <Edit2 size={14} />
                             </button>
                             <button
-                              onClick={() => handleDelete("database_panel", item.id)}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-rose-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Hapus"
+                              onClick={() => handleDelete("database_panel", p.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -452,52 +684,53 @@ export default function AdminCatalogPage() {
                     ))}
                 </tbody>
               </table>
-            )}
+            </div>
+          )}
 
-            {activeTab === "inverters" && (
+          {/* TAB 2: INVERTER */}
+          {activeTab === "inverters" && (
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-black tracking-wider">
-                    <th className="pb-3 px-3">Merk / Tipe Inverter</th>
-                    <th className="pb-3 px-3 text-center">Rated Power (VA)</th>
-                    <th className="pb-3 px-3 text-center">Max Voc Input (V)</th>
-                    <th className="pb-3 px-3 text-center">Max Isc Input (A)</th>
-                    <th className="pb-3 px-3 text-center">Tegangan Sistem (V)</th>
-                    <th className="pb-3 px-3 text-right">Est. Harga (IDR)</th>
-                    <th className="pb-3 px-3 text-center w-24">Aksi</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="pb-3">Merk / Tipe Inverter</th>
+                    <th className="pb-3 text-center">Daya Rated (VA)</th>
+                    <th className="pb-3 text-center">Max Voc Input (V)</th>
+                    <th className="pb-3 text-center">Max Isc Input (A)</th>
+                    <th className="pb-3 text-center">Tegangan Sistem</th>
+                    <th className="pb-3 text-right">Est. Harga Satuan</th>
+                    <th className="pb-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
                   {inverters
                     .filter((inv) => inv.merk_tipe.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                          <Cpu size={15} className="text-purple-500" />
-                          <span>{item.merk_tipe}</span>
+                    .map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-4 text-slate-900 dark:text-white">{inv.merk_tipe}</td>
+                        <td className="py-4 text-center text-purple-600 dark:text-purple-400 font-black">{inv.rated_power_va} VA</td>
+                        <td className="py-4 text-center">{inv.max_voc_input} V</td>
+                        <td className="py-4 text-center">{inv.max_isc_input} A</td>
+                        <td className="py-4 text-center font-mono text-[11px]">{inv.system_voltage}V</td>
+                        <td className="py-4 text-right text-emerald-600 dark:text-emerald-400 font-black">
+                          {formatRupiah(inv.price_estimate)}
                         </td>
-                        <td className="py-3.5 px-3 text-center font-black text-purple-600 dark:text-purple-400">{item.rated_power_va} VA</td>
-                        <td className="py-3.5 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{item.max_voc_input} V</td>
-                        <td className="py-3.5 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{item.max_isc_input} A</td>
-                        <td className="py-3.5 px-3 text-center text-slate-500">{item.system_voltage}V DC</td>
-                        <td className="py-3.5 px-3 text-right font-black text-slate-900 dark:text-white">
-                          {formatRupiah(item.price_estimate)}
-                        </td>
-                        <td className="py-3.5 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => { setEditingItem({ ...item }); setIsModalOpen(true); }}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-purple-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Edit"
+                              onClick={() => {
+                                setEditingItem({ ...inv });
+                                setIsModalOpen(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-purple-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Edit2 size={13} />
+                              <Edit2 size={14} />
                             </button>
                             <button
-                              onClick={() => handleDelete("database_inverter", item.id)}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-rose-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Hapus"
+                              onClick={() => handleDelete("database_inverter", inv.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -505,54 +738,58 @@ export default function AdminCatalogPage() {
                     ))}
                 </tbody>
               </table>
-            )}
+            </div>
+          )}
 
-            {activeTab === "batteries" && (
+          {/* TAB 3: BATTERIES */}
+          {activeTab === "batteries" && (
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-black tracking-wider">
-                    <th className="pb-3 px-3">Brand & Model</th>
-                    <th className="pb-3 px-3 text-center">Tipe Kimia</th>
-                    <th className="pb-3 px-3 text-center">Tegangan (V)</th>
-                    <th className="pb-3 px-3 text-center">Kapasitas (Ah)</th>
-                    <th className="pb-3 px-3 text-center">Berat (kg)</th>
-                    <th className="pb-3 px-3 text-center">Max DoD</th>
-                    <th className="pb-3 px-3 text-right">Est. Harga (IDR)</th>
-                    <th className="pb-3 px-3 text-center w-24">Aksi</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="pb-3">Brand & Model</th>
+                    <th className="pb-3 text-center">Tipe Sel</th>
+                    <th className="pb-3 text-center">Tegangan (V)</th>
+                    <th className="pb-3 text-center">Kapasitas (Ah)</th>
+                    <th className="pb-3 text-center">Berat (kg)</th>
+                    <th className="pb-3 text-center">Max DoD</th>
+                    <th className="pb-3 text-right">Est. Harga Satuan</th>
+                    <th className="pb-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
                   {batteries
                     .filter((b) => (b.brand + " " + b.model).toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                          <BatteryIcon size={15} className="text-blue-500" />
-                          <span>{item.brand} {item.model}</span>
+                    .map((b) => (
+                      <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-4 text-slate-900 dark:text-white">
+                          <p className="font-black">{b.brand}</p>
+                          <p className="text-[10px] text-slate-400">{b.model}</p>
                         </td>
-                        <td className="py-3.5 px-3 text-center font-bold text-blue-600 dark:text-blue-400">{item.type}</td>
-                        <td className="py-3.5 px-3 text-center font-bold text-slate-600 dark:text-slate-300">{item.voltage} V</td>
-                        <td className="py-3.5 px-3 text-center font-black text-slate-800 dark:text-white">{item.capacity_ah} Ah</td>
-                        <td className="py-3.5 px-3 text-center text-slate-500">{item.weight_kg} kg</td>
-                        <td className="py-3.5 px-3 text-center text-slate-500">{Math.round(item.max_dod * 100)}%</td>
-                        <td className="py-3.5 px-3 text-right font-black text-slate-900 dark:text-white">
-                          {formatRupiah(item.price_estimate || 16500000)}
+                        <td className="py-4 text-center text-blue-600 dark:text-blue-400">{b.type}</td>
+                        <td className="py-4 text-center">{b.voltage} V</td>
+                        <td className="py-4 text-center font-black">{b.capacity_ah} Ah</td>
+                        <td className="py-4 text-center">{b.weight_kg} kg</td>
+                        <td className="py-4 text-center font-mono text-[11px]">{(b.max_dod * 100).toFixed(0)}%</td>
+                        <td className="py-4 text-right text-emerald-600 dark:text-emerald-400 font-black">
+                          {formatRupiah(b.price_estimate || 16500000)}
                         </td>
-                        <td className="py-3.5 px-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => { setEditingItem({ ...item }); setIsModalOpen(true); }}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-purple-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Edit"
+                              onClick={() => {
+                                setEditingItem({ ...b });
+                                setIsModalOpen(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-purple-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Edit2 size={13} />
+                              <Edit2 size={14} />
                             </button>
                             <button
-                              onClick={() => handleDelete("database_batteries", item.id)}
-                              className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-rose-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                              title="Hapus"
+                              onClick={() => handleDelete("database_batteries", b.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
@@ -560,89 +797,82 @@ export default function AdminCatalogPage() {
                     ))}
                 </tbody>
               </table>
-            )}
+            </div>
+          )}
 
-            {activeTab === "cables" && (
+          {/* TAB 4: CABLES */}
+          {activeTab === "cables" && (
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-black tracking-wider">
-                    <th className="pb-3 px-3">Ukuran Penampang Kabel</th>
-                    <th className="pb-3 px-3 text-center">Kuat Hantar Arus / KHA Maksimal (A)</th>
-                    <th className="pb-3 px-3 text-right w-24">Aksi</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="pb-3">Ukuran Penampang (mm²)</th>
+                    <th className="pb-3 text-center">KHA Maksimal (A)</th>
+                    <th className="pb-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {cables.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Zap size={15} className="text-emerald-500" />
-                        <span>Kabel DC {item.ukuran_mm2} mm²</span>
-                      </td>
-                      <td className="py-3.5 px-3 text-center font-black text-emerald-600 dark:text-emerald-400">
-                        {item.max_ampere} A
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
+                  {cables.map((c, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-4 text-slate-900 dark:text-white font-black">{c.ukuran_mm2} mm²</td>
+                      <td className="py-4 text-center text-emerald-600 dark:text-emerald-400 font-mono">{c.max_ampere} Ampere</td>
+                      <td className="py-4 text-right">
                         <button
-                          onClick={() => { setEditingItem({ ...item, docId: `kabel-${item.ukuran_mm2}mm` }); setIsModalOpen(true); }}
-                          className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-purple-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                          title="Edit"
+                          onClick={() => handleDelete("database_kabel", `kabel-${c.ukuran_mm2}mm`)}
+                          className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                         >
-                          <Edit2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
+            </div>
+          )}
 
-            {activeTab === "fuses" && (
+          {/* TAB 5: FUSES */}
+          {activeTab === "fuses" && (
+            <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 uppercase text-[10px] font-black tracking-wider">
-                    <th className="pb-3 px-3">Rating Sekring / Breaker</th>
-                    <th className="pb-3 px-3 text-center">Kapasitas Arus Putus (A)</th>
-                    <th className="pb-3 px-3 text-right w-24">Aksi</th>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="pb-3">Rating Arus Sekring / Breaker (A)</th>
+                    <th className="pb-3 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {fuses.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3.5 px-3 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <ShieldCheck size={15} className="text-rose-500" />
-                        <span>Fuse / DC Breaker {item.rating_ampere}A</span>
-                      </td>
-                      <td className="py-3.5 px-3 text-center font-black text-rose-600 dark:text-rose-400">
-                        {item.rating_ampere} A
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-bold">
+                  {fuses.map((f, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-4 text-slate-900 dark:text-white font-black">{f.rating_ampere} Ampere</td>
+                      <td className="py-4 text-right">
                         <button
-                          onClick={() => { setEditingItem({ ...item, docId: `fuse-${item.rating_ampere}a` }); setIsModalOpen(true); }}
-                          className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:text-purple-600 rounded-lg text-slate-500 transition-colors cursor-pointer"
-                          title="Edit"
+                          onClick={() => handleDelete("database_fuse", `fuse-${f.rating_ampere}a`)}
+                          className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                         >
-                          <Edit2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* MODAL: ADD / EDIT ITEM */}
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative space-y-6">
+        {/* MODAL: ADD / EDIT CATALOG ITEM */}
+        {isModalOpen && activeTab !== "users" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto">
+              
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {editingItem?.id || editingItem?.docId ? "Edit Komponen" : "Tambah Komponen Baru"}
+                  {editingItem?.id ? "Edit Item Katalog" : "Tambah Item Katalog Baru"}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center cursor-pointer"
+                  className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -652,13 +882,13 @@ export default function AdminCatalogPage() {
                 {activeTab === "panels" && (
                   <>
                     <div>
-                      <label className="font-bold text-slate-400 block mb-1">Tipe / Nama Panel</label>
+                      <label className="font-bold text-slate-400 block mb-1">Tipe / Model Panel</label>
                       <input
                         type="text"
                         required
-                        value={String(editingItem?.tipe_wp || "")}
+                        value={editingItem?.tipe_wp || ""}
                         onChange={(e) => setEditingItem({ ...editingItem, tipe_wp: e.target.value })}
-                        placeholder="Contoh: Tier 1 Mono 550Wp"
+                        placeholder="Contoh: Jinko Tiger Pro 550Wp"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                       />
                     </div>
@@ -696,6 +926,38 @@ export default function AdminCatalogPage() {
                         />
                       </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="font-bold text-slate-400 block mb-1">Panjang (mm)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingItem?.length_mm || 2278}
+                          onChange={(e) => setEditingItem({ ...editingItem, length_mm: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-400 block mb-1">Lebar (mm)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingItem?.width_mm || 1134}
+                          onChange={(e) => setEditingItem({ ...editingItem, width_mm: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-400 block mb-1">Berat (kg)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingItem?.weight_kg || 28}
+                          onChange={(e) => setEditingItem({ ...editingItem, weight_kg: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
+                        />
+                      </div>
+                    </div>
                     <div>
                       <label className="font-bold text-slate-400 block mb-1">Estimasi Harga Satuan (IDR)</label>
                       <input
@@ -717,15 +979,15 @@ export default function AdminCatalogPage() {
                       <input
                         type="text"
                         required
-                        value={String(editingItem?.merk_tipe || "")}
+                        value={editingItem?.merk_tipe || ""}
                         onChange={(e) => setEditingItem({ ...editingItem, merk_tipe: e.target.value })}
-                        placeholder="Contoh: Growatt SPF 5000ES Hybrid"
+                        placeholder="Contoh: Deye 5kW Hybrid"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="font-bold text-slate-400 block mb-1">Rated Power (VA)</label>
+                        <label className="font-bold text-slate-400 block mb-1">Daya Rated (VA)</label>
                         <input
                           type="number"
                           required
@@ -735,21 +997,33 @@ export default function AdminCatalogPage() {
                         />
                       </div>
                       <div>
+                        <label className="font-bold text-slate-400 block mb-1">Tegangan Sistem (V)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingItem?.system_voltage || 48}
+                          onChange={(e) => setEditingItem({ ...editingItem, system_voltage: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
                         <label className="font-bold text-slate-400 block mb-1">Max Voc Input (V)</label>
                         <input
                           type="number"
                           required
-                          value={editingItem?.max_voc_input || ""}
+                          value={editingItem?.max_voc_input || 500}
                           onChange={(e) => setEditingItem({ ...editingItem, max_voc_input: e.target.value })}
                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                         />
                       </div>
                       <div>
-                        <label className="font-bold text-slate-400 block mb-1">Max Isc (A)</label>
+                        <label className="font-bold text-slate-400 block mb-1">Max Isc Input (A)</label>
                         <input
                           type="number"
                           required
-                          value={editingItem?.max_isc_input || ""}
+                          value={editingItem?.max_isc_input || 22}
                           onChange={(e) => setEditingItem({ ...editingItem, max_isc_input: e.target.value })}
                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                         />
@@ -762,7 +1036,7 @@ export default function AdminCatalogPage() {
                         required
                         value={editingItem?.price_estimate || ""}
                         onChange={(e) => setEditingItem({ ...editingItem, price_estimate: e.target.value })}
-                        placeholder="18000000"
+                        placeholder="17500000"
                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                       />
                     </div>
@@ -777,9 +1051,9 @@ export default function AdminCatalogPage() {
                         <input
                           type="text"
                           required
-                          value={String(editingItem?.brand || "")}
+                          value={editingItem?.brand || ""}
                           onChange={(e) => setEditingItem({ ...editingItem, brand: e.target.value })}
-                          placeholder="Pylontech / Felicity"
+                          placeholder="Pylontech"
                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                         />
                       </div>
@@ -788,9 +1062,9 @@ export default function AdminCatalogPage() {
                         <input
                           type="text"
                           required
-                          value={String(editingItem?.model || "")}
+                          value={editingItem?.model || ""}
                           onChange={(e) => setEditingItem({ ...editingItem, model: e.target.value })}
-                          placeholder="LPBA48100 48V"
+                          placeholder="US5000 48V"
                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold border border-slate-200 dark:border-slate-700 outline-none"
                         />
                       </div>

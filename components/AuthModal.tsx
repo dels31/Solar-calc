@@ -48,6 +48,8 @@ export default function AuthModal({
       const authErr = err as { code?: string; message?: string };
       if (authErr.code === "auth/popup-closed-by-user") {
         setErrorMsg("Login Google dibatalkan.");
+      } else if (authErr.code === "auth/configuration-not-found") {
+        setErrorMsg("Layanan Authentication belum diaktifkan di Firebase Console. Buka Firebase Console > Authentication > klik 'Get Started' dan aktifkan provider Google.");
       } else {
         setErrorMsg("Gagal login dengan Google: " + (authErr.message || ""));
       }
@@ -86,6 +88,8 @@ export default function AuthModal({
         setErrorMsg("Email ini sudah terdaftar. Silakan pilih tab Masuk.");
       } else if (authErr.code === "auth/weak-password") {
         setErrorMsg("Kata sandi terlalu pendek (minimal 6 karakter).");
+      } else if (authErr.code === "auth/configuration-not-found") {
+        setErrorMsg("Layanan Authentication belum diaktifkan di Firebase Console. Buka Firebase Console > Authentication > klik 'Get Started' dan aktifkan provider Email/Password.");
       } else {
         setErrorMsg(authErr.message || "Terjadi kesalahan autentikasi.");
       }

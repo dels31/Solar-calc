@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import {
   X,
   Crown,
   QrCode,
-  FileText,
-  FileSpreadsheet,
-  Zap,
-  ShieldCheck,
   Loader2,
   Sparkles,
+  MessageCircle,
 } from "lucide-react";
 
 interface PaymentModalProps {
@@ -21,11 +19,23 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) {
-  const { upgradeToPro } = useAuth();
+  const { user, upgradeToPro } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<"project" | "unlimited">("unlimited");
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
+
+  const planPrice = selectedPlan === "unlimited" ? "Rp 99.000" : "Rp 25.000";
+  const planName = selectedPlan === "unlimited" ? "Pro Unlimited (1 Bulan)" : "Single Project Export";
+
+  const waMessage = `Halo Admin 7 Layers IT Solutions, saya sudah transfer/scan QRIS untuk aktivasi akun Solar Calc Pro:
+- Nama: ${user?.displayName || "Pengguna"}
+- Email Akun: ${user?.email || "-"}
+- Pilihan Paket: ${planName} (${planPrice})
+
+Mohon bantuannya untuk di-ACC / aktivasi paket Pro saya ya min. Terima kasih! 🙏`;
+
+  const waUrl = `https://wa.me/6281993507390?text=${encodeURIComponent(waMessage)}`;
 
   const handleSimulatePayment = async () => {
     setIsProcessing(true);
@@ -35,7 +45,7 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModa
         setIsProcessing(false);
         onSuccess();
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (err) {
       console.error(err);
       setIsProcessing(false);
@@ -66,51 +76,8 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModa
             </span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Buka akses penuh ekspor dokumen resmi engineering proposal PDF & spreadsheet BoM untuk klien Anda
+            Buka akses penuh ekspor proposal PDF resmi ber-KOP & spreadsheet Excel BoM lengkap
           </p>
-        </div>
-
-        {/* FEATURE HIGHLIGHTS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-start gap-3">
-            <div className="w-8 h-8 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center shrink-0">
-              <FileText size={16} />
-            </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">PDF Proposal Resmi</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Kop & logo 7 Layers, analisis ROI & tabel teknis garansi 25 tahun</p>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-start gap-3">
-            <div className="w-8 h-8 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-              <FileSpreadsheet size={16} />
-            </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Excel Bill of Materials</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Rincian itemized BoM lengkap beserta estimasi harga pasar real-time</p>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center shrink-0">
-              <Zap size={16} />
-            </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Single Line Diagram</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Visualisasi alur daya stringing dan titik proteksi standar PUIL/NEC</p>
-            </div>
-          </div>
-
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-start gap-3">
-            <div className="w-8 h-8 bg-purple-500/10 text-purple-500 rounded-xl flex items-center justify-center shrink-0">
-              <ShieldCheck size={16} />
-            </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Unlimited Projects</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Kalkulasi dan buat penawaran tanpa batas untuk seluruh klien Anda</p>
-            </div>
-          </div>
         </div>
 
         {/* PRICING OPTIONS */}
@@ -143,7 +110,7 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModa
                 : "bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-400"
             }`}
           >
-            <div className="absolute -top-2.5 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
+            <div className="absolute -top-2.5 right-4 bg-linear-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-sm">
               PALING POPULER
             </div>
             <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider block mb-1">
@@ -159,47 +126,78 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModa
           </div>
         </div>
 
-        {/* QRIS / PAYMENT METHOD TOGGLE */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <QrCode size={16} className="text-amber-500" /> Metode Pembayaran Otomatis
-            </span>
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
-              ⚡ QRIS & Virtual Account
+        {/* OFFICIAL QRIS PAYMENT SECTION */}
+        <div className="p-5 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/80 pb-3">
+            <div className="flex items-center gap-2">
+              <QrCode size={18} className="text-amber-500" />
+              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                QRIS Pembayaran Resmi (7 Layers IT Solutions)
+              </span>
+            </div>
+            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-300/40">
+              Total Bayar: {planPrice}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <span>Mendukung:</span>
-            <span className="font-bold text-slate-700 dark:text-slate-300">GoPay, OVO, Dana, ShopeePay, BCA, Mandiri, BRI, BNI</span>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            {/* QRIS IMAGE */}
+            <div className="p-2 bg-white rounded-2xl border-2 border-slate-200 shadow-md shrink-0 w-48 h-64 relative flex flex-col items-center justify-center">
+              <Image
+                src="/qris-7layers.jpg"
+                alt="QRIS 7 Layers IT Solutions"
+                width={180}
+                height={240}
+                className="w-full h-full object-contain rounded-xl"
+              />
+            </div>
+
+            {/* PAYMENT INSTRUCTIONS */}
+            <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300 flex-1">
+              <p className="font-bold text-slate-800 dark:text-slate-100">
+                Langkah Pembayaran & Aktivasi:
+              </p>
+              <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                <li>Buka aplikasi m-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay).</li>
+                <li>Scan barcode QRIS <strong>7 Layers IT Solution</strong> di samping.</li>
+                <li>Masukkan nominal sesuai paket: <strong className="text-slate-900 dark:text-white font-bold">{planPrice}</strong>.</li>
+                <li>Selesai transfer, klik tombol WhatsApp di bawah untuk kirim bukti transfer ke admin.</li>
+              </ol>
+
+              {/* WHATSAPP CONFIRMATION BUTTON */}
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full mt-3 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 text-center"
+              >
+                <MessageCircle size={16} />
+                <span>Konfirmasi Bukti Transfer via WhatsApp (0819-9350-7390)</span>
+              </a>
+            </div>
           </div>
         </div>
 
-        {/* ACTION BUTTON */}
-        <div className="space-y-2 pt-1">
+        {/* INSTANT PRO VERIFICATION BUTTON (TESTING / ACC DEMO) */}
+        <div className="pt-1">
           <button
             type="button"
             onClick={handleSimulatePayment}
             disabled={isProcessing}
-            className="w-full py-4 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-400 dark:text-amber-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all border border-amber-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {isProcessing ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Memproses Verifikasi Pembayaran...</span>
+                <Loader2 size={15} className="animate-spin" />
+                <span>Memproses Aktivasi Instan...</span>
               </>
             ) : (
               <>
-                <Sparkles size={16} />
-                <span>Konfirmasi Pembayaran ({selectedPlan === "unlimited" ? "Rp 99.000" : "Rp 25.000"})</span>
+                <Sparkles size={15} />
+                <span>Simulasi Aktivasi Instan (Sandbox Demo)</span>
               </>
             )}
           </button>
-          
-          <p className="text-[10px] text-slate-400 text-center">
-            *Simulasi pembayaran instan sandbox aktif untuk testing & presentasi
-          </p>
         </div>
 
       </div>
