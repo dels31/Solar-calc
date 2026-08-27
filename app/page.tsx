@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import {
@@ -93,7 +94,7 @@ export default function SolarCalculator() {
   const [clientName, setClientName] = useState("Bpk/Ibu Klien");
   const [projectName, setProjectName] = useState("Instalasi PLTS Mandiri");
   const [projectLocation, setProjectLocation] = useState("Banjarmasin, Kalimantan Selatan");
-  const [preparedBy, setPreparedBy] = useState("Solar Specialist Engineer");
+  const [preparedBy, setPreparedBy] = useState("7 Layers IT Solutions Engineer");
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
   useEffect(() => {
@@ -252,13 +253,20 @@ export default function SolarCalculator() {
         
         {/* TOP NAVBAR & THEME SWITCHER */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 text-white font-black">
-              <Sun size={24} />
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 bg-white dark:bg-slate-800/80 rounded-2xl flex items-center justify-center p-1 border border-slate-200 dark:border-slate-700 shadow-md overflow-hidden">
+              <Image
+                src="/logo-7layers.png"
+                alt="7 Layers IT Solutions Logo"
+                width={48}
+                height={48}
+                className="w-full h-full object-contain"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                Solar Calc Pro
+                7 Layers IT Solutions
                 <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
                   isFirestoreConnected
                     ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-300/40 dark:border-emerald-700/40"
@@ -268,7 +276,7 @@ export default function SolarCalculator() {
                 </span>
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Sistem Kalkulator, Analisis ROI & Rekomendasi BoM PLTS
+                Solar Calc Pro — Photovoltaic & Renewable Energy Engineering
               </p>
             </div>
           </div>
