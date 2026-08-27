@@ -7,6 +7,7 @@ export interface Panel {
   length_mm: number;
   width_mm: number;
   weight_kg: number;
+  price_estimate?: number;
 }
 
 export interface Inverter {
@@ -29,6 +30,7 @@ export interface Battery {
   weight_kg: number;
   max_dod: number;
   max_discharge: number;
+  price_estimate?: number;
 }
 
 export interface Kabel {
@@ -41,9 +43,9 @@ export interface Fuse {
 }
 
 export const defaultPanels: Panel[] = [
-  { id: "panel-450", tipe_wp: "Tier 1 Monocrystalline 450Wp", pmax: 450, voc: 49.5, isc: 11.5, length_mm: 2094, width_mm: 1038, weight_kg: 24.5 },
-  { id: "panel-550", tipe_wp: "Tier 1 Monocrystalline 550Wp", pmax: 550, voc: 49.8, isc: 13.9, length_mm: 2278, width_mm: 1134, weight_kg: 28.0 },
-  { id: "panel-600", tipe_wp: "Tier 1 Monocrystalline 600Wp", pmax: 600, voc: 52.0, isc: 14.5, length_mm: 2465, width_mm: 1134, weight_kg: 31.0 },
+  { id: "panel-450", tipe_wp: "Tier 1 Monocrystalline 450Wp", pmax: 450, voc: 49.5, isc: 11.5, length_mm: 2094, width_mm: 1038, weight_kg: 24.5, price_estimate: 1550000 },
+  { id: "panel-550", tipe_wp: "Tier 1 Monocrystalline 550Wp", pmax: 550, voc: 49.8, isc: 13.9, length_mm: 2278, width_mm: 1134, weight_kg: 28.0, price_estimate: 1850000 },
+  { id: "panel-600", tipe_wp: "Tier 1 Monocrystalline 600Wp", pmax: 600, voc: 52.0, isc: 14.5, length_mm: 2465, width_mm: 1134, weight_kg: 31.0, price_estimate: 2050000 },
 ];
 
 export const defaultInverters: Inverter[] = [
@@ -54,9 +56,9 @@ export const defaultInverters: Inverter[] = [
 ];
 
 export const defaultBatteries: Battery[] = [
-  { id: "bat-50ah", brand: "Pylontech", model: "US3000C 48V", type: "LiFePO4", voltage: 48, capacity_ah: 50, weight_kg: 32, max_dod: 0.8, max_discharge: 50 },
-  { id: "bat-100ah", brand: "Felicity Solar", model: "LPBA48100 48V", type: "LiFePO4", voltage: 48, capacity_ah: 100, weight_kg: 55, max_dod: 0.8, max_discharge: 100 },
-  { id: "bat-200ah", brand: "Felicity Solar", model: "LPBA48200 48V", type: "LiFePO4", voltage: 48, capacity_ah: 200, weight_kg: 105, max_dod: 0.8, max_discharge: 150 },
+  { id: "bat-50ah", brand: "Pylontech", model: "US3000C 48V", type: "LiFePO4", voltage: 48, capacity_ah: 50, weight_kg: 32, max_dod: 0.8, max_discharge: 50, price_estimate: 9500000 },
+  { id: "bat-100ah", brand: "Felicity Solar", model: "LPBA48100 48V", type: "LiFePO4", voltage: 48, capacity_ah: 100, weight_kg: 55, max_dod: 0.8, max_discharge: 100, price_estimate: 16500000 },
+  { id: "bat-200ah", brand: "Felicity Solar", model: "LPBA48200 48V", type: "LiFePO4", voltage: 48, capacity_ah: 200, weight_kg: 105, max_dod: 0.8, max_discharge: 150, price_estimate: 29500000 },
 ];
 
 export const defaultKabel: Kabel[] = [
