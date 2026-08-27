@@ -608,85 +608,96 @@ export default function SolarCalculator() {
               </div>
 
               {/* 4 HIGHLIGHT FINANCIAL CARDS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {/* 1. Monthly Savings */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-emerald-500/30 dark:border-emerald-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-emerald-500/30 dark:border-emerald-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-w-0">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                         Hemat / Bulan
                       </span>
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                        <PiggyBank size={16} />
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                        <PiggyBank size={15} />
                       </div>
                     </div>
-                    <h4 className="text-xl xl:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
-                      {formatRupiah(calc.financial.penghematanBulanRp)}
-                    </h4>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xs font-bold text-emerald-600/80 dark:text-emerald-400/80">Rp</span>
+                      <h4 className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight truncate">
+                        {calc.financial.penghematanBulanRp.toLocaleString("id-ID")}
+                      </h4>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium">
-                    {formatRupiah(calc.financial.penghematanTahunRp)} / tahun
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-medium truncate">
+                    Rp {calc.financial.penghematanTahunRp.toLocaleString("id-ID")} / thn
                   </p>
                 </div>
 
                 {/* 2. Payback Period */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-blue-500/30 dark:border-blue-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-blue-500/30 dark:border-blue-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-w-0">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                         Payback Period
                       </span>
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
-                        <TrendingUp size={16} />
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                        <TrendingUp size={15} />
                       </div>
                     </div>
-                    <h4 className="text-xl xl:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
-                      {calc.financial.paybackYears} <span className="text-sm font-bold text-slate-400">Tahun</span>
-                    </h4>
+                    <div className="flex items-baseline gap-1">
+                      <h4 className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
+                        {calc.financial.paybackYears}
+                      </h4>
+                      <span className="text-xs font-bold text-slate-400 uppercase">Tahun</span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-bold">
+                  <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-bold truncate">
                     ROI 25 Thn: +{calc.financial.roiPercent25Years}%
                   </p>
                 </div>
 
                 {/* 3. Total Capex Investment */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-purple-500/30 dark:border-purple-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-purple-500/30 dark:border-purple-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-w-0">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                         Estimasi Capex
                       </span>
-                      <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500">
-                        <Receipt size={16} />
+                      <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0">
+                        <Receipt size={15} />
                       </div>
                     </div>
-                    <h4 className="text-lg xl:text-xl 2xl:text-2xl font-black text-slate-800 dark:text-white tracking-tight">
-                      {formatRupiah(calc.financial.totalInvestasi)}
-                    </h4>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xs font-bold text-slate-400">Rp</span>
+                      <h4 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white tracking-tight truncate">
+                        {calc.financial.totalInvestasi.toLocaleString("id-ID")}
+                      </h4>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-medium truncate">
                     Hardware + BoM + Jasa
                   </p>
                 </div>
 
                 {/* 4. Green Impact */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-teal-500/30 dark:border-teal-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-teal-500/30 dark:border-teal-500/20 shadow-sm hover:shadow-md transition-all flex flex-col justify-between min-w-0">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                         Green Energy
                       </span>
-                      <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-500">
-                        <Leaf size={16} />
+                      <div className="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-500 shrink-0">
+                        <Leaf size={15} />
                       </div>
                     </div>
-                    <h4 className="text-xl xl:text-2xl font-black text-teal-600 dark:text-teal-400 tracking-tight">
-                      {calc.green.co2SavedKgPerYear.toLocaleString("id-ID")}{" "}
+                    <div className="flex items-baseline gap-1">
+                      <h4 className="text-lg sm:text-xl font-black text-teal-600 dark:text-teal-400 tracking-tight truncate">
+                        {calc.green.co2SavedKgPerYear.toLocaleString("id-ID")}
+                      </h4>
                       <span className="text-xs font-bold text-slate-400">kg/thn</span>
-                    </h4>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-teal-600 dark:text-teal-400 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 font-bold flex items-center gap-1">
-                    <Trees size={13} /> Setara {calc.green.treesEquivalent} Pohon/thn
+                  <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 font-bold flex items-center gap-1 truncate">
+                    <Trees size={12} className="shrink-0" /> Setara {calc.green.treesEquivalent} Pohon/thn
                   </p>
                 </div>
               </div>
