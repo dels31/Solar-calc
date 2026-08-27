@@ -25,6 +25,7 @@ import {
 } from "@/lib/solarCalculator";
 import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
 import SystemSchematicDiagram from "@/components/SystemSchematicDiagram";
+import LoadProfileBuilder from "@/components/LoadProfileBuilder";
 import {
   Sun,
   Moon,
@@ -32,6 +33,7 @@ import {
   Battery as BatteryIcon,
   Zap,
   Settings2,
+  Sliders,
   ShieldCheck,
   Cpu,
   Box,
@@ -96,6 +98,9 @@ export default function SolarCalculator() {
   const [projectName, setProjectName] = useState("Instalasi PLTS Mandiri");
   const [projectLocation, setProjectLocation] = useState("Banjarmasin, Kalimantan Selatan");
   const [preparedBy, setPreparedBy] = useState("7 Layers IT Solutions Engineer");
+
+  // State Load Profile Builder Modal (Point 4)
+  const [isLoadBuilderOpen, setIsLoadBuilderOpen] = useState(false);
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
   useEffect(() => {
@@ -364,9 +369,18 @@ export default function SolarCalculator() {
 
               <div className="space-y-6">
                 <div>
-                  <label className="text-[15px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest mb-2 block">
-                    Beban Sistem (VA)
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-[15px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest block">
+                      Beban Sistem (VA)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsLoadBuilderOpen(true)}
+                      className="text-[10px] font-black text-amber-600 dark:text-amber-400 hover:text-amber-500 bg-amber-50 dark:bg-amber-950/60 border border-amber-300/40 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <Sliders size={11} /> Hitung dari Alat
+                    </button>
+                  </div>
                   <input
                     type="number"
                     value={dayaVA}
@@ -1325,6 +1339,16 @@ export default function SolarCalculator() {
             </div>
           </div>
         )}
+
+        {/* MODAL: LOAD PROFILE BUILDER (POINT 4) */}
+        <LoadProfileBuilder
+          isOpen={isLoadBuilderOpen}
+          onClose={() => setIsLoadBuilderOpen(false)}
+          onApply={(calculatedVA, effectiveHours) => {
+            setDayaVA(calculatedVA);
+            setJamOp(effectiveHours);
+          }}
+        />
 
       </div>
     </div>
