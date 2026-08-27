@@ -485,27 +485,44 @@ export default function SolarCalculator() {
               </div>
 
               {/* ESTIMATION MODE TOGGLE */}
-              <div className="flex bg-slate-100 dark:bg-slate-800/70 p-1 rounded-xl mb-6 border border-transparent dark:border-slate-700/50">
-                <button
-                  onClick={() => setEstimationMode("safety")}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                    estimationMode === "safety"
-                      ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                      : "text-slate-400 dark:text-slate-400"
-                  }`}
-                >
-                  🛡️ Safety Mode
-                </button>
-                <button
-                  onClick={() => setEstimationMode("optimized")}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                    estimationMode === "optimized"
-                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-400 dark:text-slate-400"
-                  }`}
-                >
-                  ⚡ Optimized
-                </button>
+              <div className="space-y-2 mb-6">
+                <div className="flex bg-slate-100 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setEstimationMode("safety")}
+                    className={`flex-1 py-2.5 px-3 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      estimationMode === "safety"
+                        ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-md ring-1 ring-emerald-500/20 font-black"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <span>🛡️ Safety Mode</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEstimationMode("optimized")}
+                    className={`flex-1 py-2.5 px-3 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      estimationMode === "optimized"
+                        ? "bg-white dark:bg-slate-700 text-amber-500 dark:text-amber-400 shadow-md ring-1 ring-amber-500/20 font-black"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <span>⚡ Optimized</span>
+                  </button>
+                </div>
+
+                {/* MODE EXPLANATION BADGE */}
+                <div className={`p-2.5 rounded-xl text-[10px] leading-relaxed transition-all border ${
+                  estimationMode === "safety"
+                    ? "bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800/40"
+                    : "bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200/60 dark:border-amber-800/40"
+                }`}>
+                  {estimationMode === "safety" ? (
+                    <span><strong>🛡️ Safety Mode (Keandalan Maksimum):</strong> Oversizing cadangan +25%, DoD baterai konservatif 80% (6000+ siklus), proteksi anti-padam saat mendung panjang.</span>
+                  ) : (
+                    <span><strong>⚡ Optimized (ROI Cepat & Hemat):</strong> Sizing presisi +5%, DoD baterai 90%, Capex investasi lebih hemat ~20-35% & balik modal lebih cepat.</span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-6">

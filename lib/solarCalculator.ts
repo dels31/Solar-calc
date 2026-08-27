@@ -211,8 +211,11 @@ export function calculateSolarSystem(inputs: SolarCalcInputs): SolarCalcResults 
   // -------------------------------------------------------------
   // 1. Perhitungan Kebutuhan Energi & Jumlah Panel
   // -------------------------------------------------------------
-  const efisiensiSistem = 0.8;
-  const safetyFactor = 1.2;
+  const isSafety = estimationMode === "safety";
+
+  // Parameter Karakteristik Mode
+  const efisiensiSistem = isSafety ? 0.78 : 0.85;
+  const safetyFactor = isSafety ? 1.25 : 1.05; // 25% cadangan di Safety, 5% di Optimized
   const energiHarianWh = dayaVA * efisiensiSistem * jamOp;
   const targetEnergiKwh = energiHarianWh * safetyFactor;
   const displayTargetKwh = targetEnergiKwh / 1000;
@@ -225,13 +228,19 @@ export function calculateSolarSystem(inputs: SolarCalcInputs): SolarCalcResults 
   // -------------------------------------------------------------
   const batteryVoltage = selectedBattery?.voltage || 48;
   const batteryCapacity = selectedBattery?.capacity_ah || 100;
-  const batteryDod = selectedBattery?.max_dod || 0.8;
+  // Safety mode: konservatif DoD 80% (6000 cycles), Optimized mode: DoD 90% (efisiensi pack)
+  const batteryDod = isSafety
+    ? Math.min(0.80, selectedBattery?.max_dod || 0.80)
+    : Math.min(0.90, selectedBattery?.max_dod || 0.90);
 
   const energyPerUnitWh = batteryVoltage * batteryCapacity;
   const usableEnergyPerUnitWh = energyPerUnitWh * batteryDod;
 
+  // Total Battery Pack Sizing
+  // Safety mode: cadangan 1.2x kapasitas harian. Optimized mode: pas 1.0x siklus harian
+  const batteryReserveMultiplier = isSafety ? 1.20 : 1.0;
   const totalPacks = usableEnergyPerUnitWh > 0
-    ? Math.ceil((targetEnergiKwh / usableEnergyPerUnitWh) * 1.25)
+    ? Math.max(1, Math.ceil((energiHarianWh / usableEnergyPerUnitWh) * batteryReserveMultiplier))
     : 0;
 
   const totalBatteryCapacityAh = totalPacks * batteryCapacity;

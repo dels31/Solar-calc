@@ -88,8 +88,17 @@ export default function AISolarAdvisor({
   }, [inputs, results, isProMember]);
 
   useEffect(() => {
+    let isMounted = true;
     if (isProMember && !geminiData) {
-      fetchGeminiAnalysis();
+      const timer = setTimeout(() => {
+        if (isMounted) {
+          fetchGeminiAnalysis();
+        }
+      }, 50);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
     }
   }, [isProMember, fetchGeminiAnalysis, geminiData]);
 
