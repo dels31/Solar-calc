@@ -26,6 +26,7 @@ import {
 import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
 import SystemSchematicDiagram from "@/components/SystemSchematicDiagram";
 import LoadProfileBuilder from "@/components/LoadProfileBuilder";
+import { INDONESIA_CITIES_PSH } from "@/lib/cityData";
 import {
   Sun,
   Moon,
@@ -101,6 +102,19 @@ export default function SolarCalculator() {
 
   // State Load Profile Builder Modal (Point 4)
   const [isLoadBuilderOpen, setIsLoadBuilderOpen] = useState(false);
+
+  // State City PSH Selector (Point 5)
+  const [selectedCityId, setSelectedCityId] = useState("banjarmasin");
+
+  const handleCityChange = (cityId: string) => {
+    setSelectedCityId(cityId);
+    if (cityId === "custom") return;
+    const found = INDONESIA_CITIES_PSH.find((c) => c.id === cityId);
+    if (found) {
+      setPsh(found.psh);
+      setProjectLocation(`${found.name}, Indonesia`);
+    }
+  };
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
   useEffect(() => {
@@ -493,16 +507,72 @@ export default function SolarCalculator() {
                   )}
                 </div>
 
-                {/* SLIDERS SECTION */}
+                {/* SLIDERS & LOCATION SECTION */}
                 <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  {/* CITY / PSH SELECTOR (POINT 5) */}
                   <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-[15px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest">
-                        Peak Sun Hour (PSH)
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[15px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <MapPin size={13} className="text-emerald-500" /> Lokasi / Kota Proyek
                       </span>
-                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-1 rounded-md">
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
                         {psh} H
                       </span>
+                    </div>
+
+                    <select
+                      value={selectedCityId}
+                      onChange={(e) => handleCityChange(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-emerald-500 transition-all outline-none mb-3"
+                    >
+                      <optgroup label="Kalimantan">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Kalimantan").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Jawa & Madura">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Jawa").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Sumatera">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Sumatera").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Bali & Nusa Tenggara">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Bali & Nusa Tenggara").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Sulawesi">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Sulawesi").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Maluku & Papua">
+                        {INDONESIA_CITIES_PSH.filter((c) => c.region === "Maluku & Papua").map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.psh} H)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <option value="custom">⚙️ Custom PSH Manual</option>
+                    </select>
+
+                    <div className="flex justify-between items-center mb-1 text-[11px] text-slate-400 font-bold">
+                      <span>Fine-tune PSH Slider:</span>
+                      <span className="text-emerald-500 font-black">{psh} Jam</span>
                     </div>
                     <input
                       type="range"
@@ -511,7 +581,10 @@ export default function SolarCalculator() {
                       step="0.1"
                       value={psh}
                       className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                      onChange={(e) => setPsh(Number(e.target.value))}
+                      onChange={(e) => {
+                        setPsh(Number(e.target.value));
+                        setSelectedCityId("custom");
+                      }}
                     />
                   </div>
 
