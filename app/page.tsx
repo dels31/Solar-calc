@@ -27,6 +27,7 @@ import {
 import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
 import SystemSchematicDiagram from "@/components/SystemSchematicDiagram";
 import LoadProfileBuilder from "@/components/LoadProfileBuilder";
+import AISolarAdvisor from "@/components/AISolarAdvisor";
 import AuthModal from "@/components/AuthModal";
 import PaymentModal from "@/components/PaymentModal";
 import { useAuth } from "@/context/AuthContext";
@@ -45,7 +46,6 @@ import {
   Box,
   LayoutGrid,
   Clock,
-  Weight,
   FileSpreadsheet,
   FileText,
   Download,
@@ -1401,11 +1401,22 @@ export default function SolarCalculator() {
             </div>
           )}
 
-          <TechnicalSummary
-            loadPerSqm={calc.loadPerSqm}
-            estimationMode={estimationMode}
-            totalPacks={calc.totalPacks}
-            pvCableSize={calc.pvCableSize}
+          <AISolarAdvisor
+            inputs={{
+              dayaVA,
+              psh,
+              jamOp,
+              selectedPanel,
+              selectedBattery,
+              selectedInverter,
+              mountingType,
+              jarakKeInverter,
+              estimationMode,
+              dbKabel,
+              dbFuse,
+              tarifPLN,
+            }}
+            results={calc}
           />
 
           <div className="mt-10 p-8 bg-slate-900 dark:bg-slate-950 border border-transparent dark:border-slate-800 rounded-[2.5rem] flex flex-col lg:flex-row justify-between items-center gap-6">
@@ -1620,73 +1631,6 @@ export default function SolarCalculator() {
           onSuccess={handlePaymentSuccess}
         />
 
-      </div>
-    </div>
-  );
-}
-
-function TechnicalSummary({
-  loadPerSqm,
-  estimationMode,
-  totalPacks,
-  pvCableSize,
-}: {
-  loadPerSqm: number | string;
-  estimationMode: "safety" | "optimized";
-  totalPacks: number;
-  pvCableSize: number | string;
-}) {
-  return (
-    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Card 1: Power Reliability */}
-      <div className="bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mb-4 text-white">
-          <Zap size={20} />
-        </div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-black text-emerald-900 dark:text-emerald-300 text-sm uppercase tracking-wider">
-            Power Reliability
-          </h4>
-          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded">
-            {estimationMode}
-          </span>
-        </div>
-        <p className="text-xs text-emerald-800/90 dark:text-emerald-300/80 leading-relaxed font-medium">
-          Sistem dikonfigurasi untuk menangani beban kritis secara kontinyu.
-          Dengan {totalPacks} unit LFP Battery, anda punya cadangan energi
-          mandiri yang aman untuk siklus harian tanpa merusak umur baterai.
-        </p>
-      </div>
-
-      {/* Card 2: Structural Safety */}
-      <div className="bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center mb-4 text-white">
-          <Weight size={20} />
-        </div>
-        <h4 className="font-black text-blue-900 dark:text-blue-300 text-sm uppercase tracking-wider mb-2">
-          Structural Safety
-        </h4>
-        <p className="text-xs text-blue-800/90 dark:text-blue-300/80 leading-relaxed font-medium">
-          Estimasi beban struktur adalah{" "}
-          <span className="font-black text-blue-950 dark:text-blue-200">{loadPerSqm} kg/m²</span>. Menggunakan
-          mounting aluminium AL6005-T5 yang standar industrial,
-          menjamin atap tetap kokoh dalam jangka panjang.
-        </p>
-      </div>
-
-      {/* Card 3: Quality Assurance */}
-      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 p-6 rounded-3xl">
-        <div className="w-10 h-10 bg-slate-800 dark:bg-slate-700 rounded-xl flex items-center justify-center mb-4 text-white">
-          <ShieldCheck size={20} />
-        </div>
-        <h4 className="font-black text-slate-900 dark:text-slate-100 text-sm uppercase tracking-wider mb-2">
-          Engineering Standard
-        </h4>
-        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-          Menggunakan kabel PV {pvCableSize}mm² untuk meminimalkan{" "}
-          <span className="italic">voltage drop</span>. Proteksi kelistrikan
-          lengkap dengan DC Breaker dan Arrester standar PLTS profesional.
-        </p>
       </div>
     </div>
   );
