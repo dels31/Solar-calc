@@ -125,7 +125,7 @@ export default function AISolarAdvisor({ inputs, results }: AISolarAdvisorProps)
               Power Autonomy & Yield
             </h4>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Array <strong className="text-slate-200">{jmlPanel} panel ({results.totalKabelPV ? jmlPanel * (selectedPanel?.pmax || 550) : 0} Wp)</strong> menghasilkan est. <strong className="text-emerald-400">{results.financial.produksiHarianKwh.toFixed(1)} kWh/hari</strong>.
+              Array <strong className="text-slate-200">{jmlPanel} panel ({jmlPanel * (selectedPanel?.pmax || 550)} Wp)</strong> menghasilkan est. <strong className="text-emerald-400">{results.financial.produksiHarianKwh.toFixed(1)} kWh/hari</strong>.
               Cadangan <strong className="text-slate-200">{totalPacks} unit baterai</strong> mampu mem-backup beban kritis selama <strong className="text-slate-200">~{autonomyHours} Jam</strong> saat mendung/malam.
             </p>
           </div>

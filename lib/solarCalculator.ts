@@ -43,6 +43,7 @@ export interface FinancialAnalysis {
   biayaBOMTambahan: number;
   biayaJasaInstalasi: number;
   totalInvestasi: number;
+  produksiHarianKwh: number;
   penghematanBulanRp: number;
   penghematanTahunRp: number;
   penghematan25TahunRp: number;
@@ -341,6 +342,7 @@ export function calculateSolarSystem(inputs: SolarCalcInputs): SolarCalcResults 
     biayaBOMTambahan,
     biayaJasaInstalasi,
     totalInvestasi,
+    produksiHarianKwh,
     penghematanBulanRp,
     penghematanTahunRp,
     penghematan25TahunRp,
