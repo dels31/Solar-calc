@@ -27,6 +27,9 @@ import {
 import { generateSolarPDFProposal } from "@/lib/pdfGenerator";
 import SystemSchematicDiagram from "@/components/SystemSchematicDiagram";
 import LoadProfileBuilder from "@/components/LoadProfileBuilder";
+import AuthModal from "@/components/AuthModal";
+import PaymentModal from "@/components/PaymentModal";
+import { useAuth } from "@/context/AuthContext";
 import { INDONESIA_CITIES_PSH } from "@/lib/cityData";
 import {
   Sun,
@@ -55,6 +58,10 @@ import {
   PiggyBank,
   Receipt,
   Trees,
+  LogIn,
+  LogOut,
+  Crown,
+  Lock,
 } from "lucide-react";
 
 import * as XLSX from "xlsx";
@@ -95,6 +102,12 @@ export default function SolarCalculator() {
     defaultBatteries.find((b) => b.capacity_ah === 100) || defaultBatteries[0]
   );
 
+  // Firebase Auth & User Profile State
+  const { user, userProfile, logout } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [pendingExportAction, setPendingExportAction] = useState<"pdf" | "excel" | null>(null);
+
   // State PDF Proposal Modal
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [clientName, setClientName] = useState("Bpk/Ibu Klien");
@@ -116,6 +129,44 @@ export default function SolarCalculator() {
       setPsh(found.psh);
       setProjectLocation(`${found.name}, Indonesia`);
     }
+  };
+
+  // Export Protected Handlers (Auth & Payment Gating)
+  const handleExportPdfClick = () => {
+    if (!user) {
+      setPendingExportAction("pdf");
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!userProfile?.isPro) {
+      setPendingExportAction("pdf");
+      setIsPaymentModalOpen(true);
+      return;
+    }
+    setIsPdfModalOpen(true);
+  };
+
+  const handleExportExcelClick = () => {
+    if (!user) {
+      setPendingExportAction("excel");
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!userProfile?.isPro) {
+      setPendingExportAction("excel");
+      setIsPaymentModalOpen(true);
+      return;
+    }
+    exportToExcel();
+  };
+
+  const handlePaymentSuccess = () => {
+    if (pendingExportAction === "pdf") {
+      setIsPdfModalOpen(true);
+    } else if (pendingExportAction === "excel") {
+      exportToExcel();
+    }
+    setPendingExportAction(null);
   };
 
   // Penerapan tema ke <html> tag (Dark / Light / System)
@@ -303,14 +354,75 @@ export default function SolarCalculator() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+            {/* USER AUTH STATUS / LOGIN (AUTH & PAYWALL GATE) */}
+            {user ? (
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 pl-2 pr-2.5 py-1 rounded-2xl shadow-xs">
+                {user.photoURL ? (
+                  <Image
+                    src={user.photoURL}
+                    alt={user.displayName || "User"}
+                    width={26}
+                    height={26}
+                    className="w-6.5 h-6.5 rounded-full object-cover border border-emerald-500"
+                  />
+                ) : (
+                  <div className="w-6.5 h-6.5 bg-emerald-500 text-slate-950 rounded-full flex items-center justify-center font-black text-xs">
+                    {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] font-black text-slate-800 dark:text-white leading-tight max-w-[90px] sm:max-w-[120px] truncate">
+                    {user.displayName || user.email?.split("@")[0]}
+                  </span>
+                  <span className={`text-[9px] font-extrabold uppercase flex items-center gap-0.5 ${
+                    userProfile?.isPro ? "text-amber-500" : "text-slate-400"
+                  }`}>
+                    {userProfile?.isPro ? (
+                      <>
+                        <Crown size={10} className="text-amber-500" /> Pro Member
+                      </>
+                    ) : (
+                      "Free Member"
+                    )}
+                  </span>
+                </div>
+
+                {!userProfile?.isPro && (
+                  <button
+                    onClick={() => setIsPaymentModalOpen(true)}
+                    className="px-2 py-0.5 bg-linear-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase rounded-lg shadow-xs hover:opacity-90 cursor-pointer ml-1"
+                  >
+                    Upgrade
+                  </button>
+                )}
+
+                <button
+                  onClick={() => logout()}
+                  title="Keluar / Logout"
+                  className="p-1 text-slate-400 hover:text-rose-500 transition-colors ml-0.5 cursor-pointer"
+                >
+                  <LogOut size={13} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-2xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <LogIn size={14} />
+                <span>Masuk / Daftar</span>
+              </button>
+            )}
+
             {/* ADMIN CATALOG BUTTON (POINT 6) */}
             <Link
               href="/admin"
               className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold text-xs rounded-2xl border border-purple-200 dark:border-purple-800 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
             >
               <Database size={14} className="text-purple-600 dark:text-purple-400" />
-              <span className="hidden md:inline">Admin Katalog</span>
+              <span className="hidden md:inline">Admin</span>
             </Link>
 
             {/* THEME SELECTOR */}
@@ -1012,13 +1124,18 @@ export default function SolarCalculator() {
           results={calc}
         />
 
-        {/* QUICK QUOTATION / BILL OF MATERIALS */}
-        <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200/60 dark:border-slate-800 shadow-sm">
+        {/* QUICK QUOTATION / BILL OF MATERIALS (PRO EXCLUSIVE) */}
+        <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-200/60 dark:border-slate-800 shadow-sm relative overflow-hidden">
           <div className="flex justify-between items-center mb-10 border-b border-slate-100 dark:border-slate-800 pb-6">
             <div className="flex items-center gap-3">
               <LayoutGrid className="text-blue-600 dark:text-blue-400" size={20} />
-              <h3 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white">
+              <h3 className="text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
                 Quick Quotation (BOM & Pricing)
+                {!userProfile?.isPro && (
+                  <span className="text-[10px] bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 px-2.5 py-0.5 rounded-full font-black border border-amber-300/40 tracking-wider">
+                    🔒 PRO ONLY
+                  </span>
+                )}
               </h3>
             </div>
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl italic">
@@ -1026,221 +1143,261 @@ export default function SolarCalculator() {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                    Item Description
-                  </th>
-                  <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">
-                    Qty
-                  </th>
-                  <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                    Unit
-                  </th>
-                  <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">
-                    Spec Detail
-                  </th>
-                  <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">
-                    Est. Subtotal
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-5">
-                    <p className="font-black text-slate-800 dark:text-white">
-                      Solar Panel Mono-Perc
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                      Tier 1 Global Brand
-                    </p>
-                  </td>
-                  <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {calc.jmlPanel}
-                  </td>
-                  <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                    Lembar
-                  </td>
-                  <td className="py-5 text-right font-bold text-orange-600 dark:text-orange-400">
-                    {selectedPanel?.tipe_wp || "N/A"}
-                  </td>
-                  <td className="py-5 text-right font-black text-slate-900 dark:text-white">
-                    {formatRupiah(calc.financial.biayaPanel)}
-                  </td>
-                </tr>
+          {userProfile?.isPro ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      Item Description
+                    </th>
+                    <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">
+                      Qty
+                    </th>
+                    <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      Unit
+                    </th>
+                    <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">
+                      Spec Detail
+                    </th>
+                    <th className="pb-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-right">
+                      Est. Subtotal
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-5">
+                      <p className="font-black text-slate-800 dark:text-white">
+                        Solar Panel Mono-Perc
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                        Tier 1 Global Brand
+                      </p>
+                    </td>
+                    <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                      {calc.jmlPanel}
+                    </td>
+                    <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Lembar
+                    </td>
+                    <td className="py-5 text-right font-bold text-orange-600 dark:text-orange-400">
+                      {selectedPanel?.tipe_wp || "N/A"}
+                    </td>
+                    <td className="py-5 text-right font-black text-slate-900 dark:text-white">
+                      {formatRupiah(calc.financial.biayaPanel)}
+                    </td>
+                  </tr>
 
-                <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-5">
-                    <p className="font-black text-slate-800 dark:text-white">
-                      Inverter Smart Hybrid
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                      Pure Sine Wave / High Voltage
-                    </p>
-                  </td>
-                  <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    1
-                  </td>
-                  <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                    Set
-                  </td>
-                  <td className="py-5 text-right font-bold text-purple-600 dark:text-purple-400">
-                    {selectedInverter?.merk_tipe || "N/A"}
-                  </td>
-                  <td className="py-5 text-right font-black text-slate-900 dark:text-white">
-                    {formatRupiah(calc.financial.biayaInverter)}
-                  </td>
-                </tr>
+                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-5">
+                      <p className="font-black text-slate-800 dark:text-white">
+                        Inverter Smart Hybrid
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                        Pure Sine Wave / High Voltage
+                      </p>
+                    </td>
+                    <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                      1
+                    </td>
+                    <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Set
+                    </td>
+                    <td className="py-5 text-right font-bold text-purple-600 dark:text-purple-400">
+                      {selectedInverter?.merk_tipe || "N/A"}
+                    </td>
+                    <td className="py-5 text-right font-black text-slate-900 dark:text-white">
+                      {formatRupiah(calc.financial.biayaInverter)}
+                    </td>
+                  </tr>
 
-                <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-5">
-                    <p className="font-black text-slate-800 dark:text-white">
-                      {selectedBattery?.type || "LiFePO4"} Storage Pack
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                      {selectedBattery?.brand || ""} {selectedBattery?.model || ""}
-                    </p>
-                  </td>
-                  <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {calc.totalPacks}
-                  </td>
-                  <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                    Unit
-                  </td>
-                  <td className="py-5 text-right font-bold text-blue-600 dark:text-blue-400">
-                    {selectedBattery?.voltage || 48}V / {selectedBattery?.capacity_ah || 100}Ah
-                  </td>
-                  <td className="py-5 text-right font-black text-slate-900 dark:text-white">
-                    {formatRupiah(calc.financial.biayaBaterai)}
-                  </td>
-                </tr>
+                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-5">
+                      <p className="font-black text-slate-800 dark:text-white">
+                        {selectedBattery?.type || "LiFePO4"} Storage Pack
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                        {selectedBattery?.brand || ""} {selectedBattery?.model || ""}
+                      </p>
+                    </td>
+                    <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                      {calc.totalPacks}
+                    </td>
+                    <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Unit
+                    </td>
+                    <td className="py-5 text-right font-bold text-blue-600 dark:text-blue-400">
+                      {selectedBattery?.voltage || 48}V / {selectedBattery?.capacity_ah || 100}Ah
+                    </td>
+                    <td className="py-5 text-right font-black text-slate-900 dark:text-white">
+                      {formatRupiah(calc.financial.biayaBaterai)}
+                    </td>
+                  </tr>
 
-                {/* MOUNTING ROWS */}
-                {mountingType === "aluminum" ? (
-                  <>
-                    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-5">
-                        <p className="font-black text-slate-800 dark:text-white">
-                          Aluminium Mounting Rails
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          AL6005-T5 Anodized (Standar Industrial)
-                        </p>
-                      </td>
-                      <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {Math.ceil(calc.jmlPanel / 2)}
-                      </td>
-                      <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                        Batang
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
-                        HD Rail System
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
-                        {formatRupiah(Math.ceil(calc.jmlPanel / 2) * 250000)}
-                      </td>
-                    </tr>
+                  {/* MOUNTING ROWS */}
+                  {mountingType === "aluminum" ? (
+                    <>
+                      <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-5">
+                          <p className="font-black text-slate-800 dark:text-white">
+                            Aluminium Mounting Rails
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                            AL6005-T5 Anodized (Standar Industrial)
+                          </p>
+                        </td>
+                        <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                          {Math.ceil(calc.jmlPanel / 2)}
+                        </td>
+                        <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                          Batang
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
+                          HD Rail System
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
+                          {formatRupiah(Math.ceil(calc.jmlPanel / 2) * 250000)}
+                        </td>
+                      </tr>
 
-                    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-5">
-                        <p className="font-black text-slate-800 dark:text-white">
-                          Module Clamps Kit
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          End Clamps & Mid Clamps Set
-                        </p>
-                      </td>
-                      <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {calc.jmlPanel * 2 + 4}
-                      </td>
-                      <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                        Pcs
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
-                        Universal 35-40mm
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
-                        {formatRupiah((calc.jmlPanel * 2 + 4) * 25000)}
-                      </td>
-                    </tr>
-                  </>
-                ) : (
-                  <>
-                    <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-5">
-                        <p className="font-black text-slate-800 dark:text-white">
-                          Besi Siku L40 x 40
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          Custom Fabricated Structure (Hot Dip Galvanized)
-                        </p>
-                      </td>
-                      <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                        {Math.ceil(calc.jmlPanel * 1.2)}
-                      </td>
-                      <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                        Batang
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
-                        6 Meter Length
-                      </td>
-                      <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
-                        {formatRupiah(Math.ceil(calc.jmlPanel * 1.2) * 160000)}
-                      </td>
-                    </tr>
-                  </>
-                )}
+                      <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-5">
+                          <p className="font-black text-slate-800 dark:text-white">
+                            Module Clamps Kit
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                            End Clamps & Mid Clamps Set
+                          </p>
+                        </td>
+                        <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                          {calc.jmlPanel * 2 + 4}
+                        </td>
+                        <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                          Pcs
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
+                          Universal 35-40mm
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
+                          {formatRupiah((calc.jmlPanel * 2 + 4) * 25000)}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <>
+                      <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-5">
+                          <p className="font-black text-slate-800 dark:text-white">
+                            Besi Siku L40 x 40
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                            Custom Fabricated Structure (Hot Dip Galvanized)
+                          </p>
+                        </td>
+                        <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                          {Math.ceil(calc.jmlPanel * 1.2)}
+                        </td>
+                        <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                          Batang
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-500 dark:text-slate-400">
+                          6 Meter Length
+                        </td>
+                        <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
+                          {formatRupiah(Math.ceil(calc.jmlPanel * 1.2) * 160000)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
 
-                <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-5">
-                    <p className="font-black text-slate-800 dark:text-white">
-                      Solar PV Cable {calc.pvCableSize}mm² & Conduit
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                      XLPO Insulated + Pipa Conduit Rigid 20mm
-                    </p>
-                  </td>
-                  <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    {Math.ceil(calc.totalKabelPV)}
-                  </td>
-                  <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                    Meter
-                  </td>
-                  <td className="py-5 text-right font-bold text-blue-600 dark:text-blue-400">
-                    Double Insulated
-                  </td>
-                  <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
-                    {formatRupiah(Math.ceil(calc.totalKabelPV) * 22000 + calc.estimasiPipaConduit * 38000)}
-                  </td>
-                </tr>
+                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-5">
+                      <p className="font-black text-slate-800 dark:text-white">
+                        Solar PV Cable {calc.pvCableSize}mm² & Conduit
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                        XLPO Insulated + Pipa Conduit Rigid 20mm
+                      </p>
+                    </td>
+                    <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                      {Math.ceil(calc.totalKabelPV)}
+                    </td>
+                    <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Meter
+                    </td>
+                    <td className="py-5 text-right font-bold text-blue-600 dark:text-blue-400">
+                      Double Insulated
+                    </td>
+                    <td className="py-5 text-right font-bold text-slate-700 dark:text-slate-300">
+                      {formatRupiah(Math.ceil(calc.totalKabelPV) * 22000 + calc.estimasiPipaConduit * 38000)}
+                    </td>
+                  </tr>
 
-                <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-5">
-                    <p className="font-black text-slate-800 dark:text-white">
-                      Jasa Instalasi, Testing & Commissioning
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                      Pemasangan Profesional & Garansi Instalasi 1 Tahun
-                    </p>
-                  </td>
-                  <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
-                    1
-                  </td>
-                  <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
-                    Lot
-                  </td>
-                  <td className="py-5 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                    Industrial Standard
-                  </td>
-                  <td className="py-5 text-right font-black text-emerald-600 dark:text-emerald-400">
-                    {formatRupiah(calc.financial.biayaJasaInstalasi)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="py-5">
+                      <p className="font-black text-slate-800 dark:text-white">
+                        Jasa Instalasi, Testing & Commissioning
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
+                        Pemasangan Profesional & Garansi Instalasi 1 Tahun
+                      </p>
+                    </td>
+                    <td className="py-5 text-center font-black text-slate-700 dark:text-slate-300">
+                      1
+                    </td>
+                    <td className="py-5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+                      Lot
+                    </td>
+                    <td className="py-5 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                      Industrial Standard
+                    </td>
+                    <td className="py-5 text-right font-black text-emerald-600 dark:text-emerald-400">
+                      {formatRupiah(calc.financial.biayaJasaInstalasi)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="relative py-4">
+              {/* BLURRED BACKGROUND SKELETON ROWS */}
+              <div className="overflow-x-auto filter blur-md select-none pointer-events-none opacity-25 dark:opacity-20 space-y-4">
+                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
+                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
+                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
+                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
+                <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-xl w-full" />
+              </div>
+
+              {/* OVERLAY LOCK CARD */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-xs rounded-2xl">
+                <div className="w-14 h-14 bg-linear-to-tr from-amber-500 to-orange-500 text-slate-950 rounded-2xl flex items-center justify-center mb-3 shadow-lg shadow-orange-500/20">
+                  <Lock size={26} />
+                </div>
+                <h4 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Quick Quotation Terkunci Khusus Pro Member
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mt-1.5 mb-5 font-medium leading-relaxed">
+                  Rincian Bill of Materials (BoM), kuantitas material, spesifikasi teknis, dan estimasi harga pasar terbuka otomatis untuk akun Pro Member.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) {
+                      setIsAuthModalOpen(true);
+                    } else {
+                      setIsPaymentModalOpen(true);
+                    }
+                  }}
+                  className="px-6 py-3.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Crown size={16} />
+                  <span>Buka Kunci Akses Quotation (Upgrade Pro)</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <TechnicalSummary
             loadPerSqm={calc.loadPerSqm}
@@ -1260,22 +1417,32 @@ export default function SolarCalculator() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-              {/* BUTTON 1: EXPORT PDF PROPOSAL (POINT 2) */}
+              {/* BUTTON 1: EXPORT PDF PROPOSAL (PROTECTED AUTH & PAYWALL GATE) */}
               <button
-                onClick={() => setIsPdfModalOpen(true)}
+                onClick={handleExportPdfClick}
                 className="flex-1 sm:flex-none px-6 py-4 bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 <FileText size={18} />
-                Export PDF Proposal
+                <span>Export PDF Proposal</span>
+                {!userProfile?.isPro && (
+                  <span className="text-[9px] bg-slate-950/40 text-amber-300 px-1.5 py-0.5 rounded font-black ml-1">
+                    PRO 🔒
+                  </span>
+                )}
               </button>
 
-              {/* BUTTON 2: EXPORT EXCEL BOM */}
+              {/* BUTTON 2: EXPORT EXCEL BOM (PROTECTED AUTH & PAYWALL GATE) */}
               <button
-                onClick={exportToExcel}
+                onClick={handleExportExcelClick}
                 className="flex-1 sm:flex-none px-6 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(16,185,129,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 <FileSpreadsheet size={18} />
-                Export Sheet (BoM)
+                <span>Export Sheet (BoM)</span>
+                {!userProfile?.isPro && (
+                  <span className="text-[9px] bg-slate-950/40 text-amber-300 px-1.5 py-0.5 rounded font-black ml-1">
+                    PRO 🔒
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -1434,6 +1601,21 @@ export default function SolarCalculator() {
             setDayaVA(calculatedVA);
             setJamOp(effectiveHours);
           }}
+        />
+
+        {/* MODAL: AUTH LOGIN / REGISTER */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          title="Login untuk Mengunduh Proposal"
+          subtitle="Simpan data proyek dan buat penawaran resmi PLTS untuk klien Anda"
+        />
+
+        {/* MODAL: PAYMENT / UPGRADE PRO PAYWALL */}
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSuccess={handlePaymentSuccess}
         />
 
       </div>
