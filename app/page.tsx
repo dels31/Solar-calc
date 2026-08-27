@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import {
   Sun,
   Battery,
@@ -80,30 +81,44 @@ export default function SolarCalculator() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: p } = await supabase.from("database_panel").select("*");
-      const { data: i } = await supabase
-        .from("database_inverter")
-        .select("*, price_estimate");
-      const { data: k } = await supabase
-        .from("database_kabel")
-        .select("*")
-        .order("max_ampere");
-      const { data: f } = await supabase
-        .from("database_fuse")
-        .select("*")
-        .order("rating_ampere");
-      const { data: b } = await supabase.from("database_batteries").select("*");
+      try {
+        // Fetch Panels
+        const panelSnap = await getDocs(collection(db, "database_panel"));
+        const p = panelSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Panel[];
 
-      if (p) {
-        setDbPanels(p);
-        setSelectedPanel(p.find((item) => item.pmax === 550) || p[0]);
-      }
-      if (i) setDbInverters(i);
-      if (k) setDbKabel(k);
-      if (f) setDbFuse(f);
-      if (b) {
-        setDbBateries(b);
-        setSelectedBattery(b.find((item) => item.capacity_ah === 100) || b[0]);
+        // Fetch Inverters
+        const inverterSnap = await getDocs(collection(db, "database_inverter"));
+        const i = inverterSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Inverter[];
+
+        // Fetch Kabel (ordered by max_ampere)
+        const kabelSnap = await getDocs(
+          query(collection(db, "database_kabel"), orderBy("max_ampere"))
+        );
+        const k = kabelSnap.docs.map((d) => ({ ...d.data() })) as Kabel[];
+
+        // Fetch Fuse (ordered by rating_ampere)
+        const fuseSnap = await getDocs(
+          query(collection(db, "database_fuse"), orderBy("rating_ampere"))
+        );
+        const f = fuseSnap.docs.map((d) => ({ ...d.data() })) as Fuse[];
+
+        // Fetch Batteries
+        const batterySnap = await getDocs(collection(db, "database_batteries"));
+        const b = batterySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Battery[];
+
+        if (p.length > 0) {
+          setDbPanels(p);
+          setSelectedPanel(p.find((item) => item.pmax === 550) || p[0]);
+        }
+        if (i.length > 0) setDbInverters(i);
+        if (k.length > 0) setDbKabel(k);
+        if (f.length > 0) setDbFuse(f);
+        if (b.length > 0) {
+          setDbBateries(b);
+          setSelectedBattery(b.find((item) => item.capacity_ah === 100) || b[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching data from Firestore:", error);
       }
     };
     fetchData();
