@@ -182,7 +182,7 @@ export default function LoadProfileBuilder({ isOpen, onClose, onApply }: LoadPro
         {/* MODAL HEADER */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-orange-500/20">
+            <div className="w-11 h-11 bg-linear-to-tr from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-orange-500/20">
               <Sliders size={22} />
             </div>
             <div>
@@ -245,7 +245,7 @@ export default function LoadProfileBuilder({ isOpen, onClose, onApply }: LoadPro
             
             {/* ADD CUSTOM FORM */}
             <form onSubmit={handleAddCustom} className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 flex flex-wrap sm:flex-nowrap items-end gap-2.5">
-              <div className="flex-1 min-w-[140px]">
+              <div className="flex-1 min-w-35">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                   Nama Peralatan
                 </label>
@@ -392,7 +392,7 @@ export default function LoadProfileBuilder({ isOpen, onClose, onApply }: LoadPro
 
           {/* RIGHT: LIVE RESULT SUMMARY & APPLY ACTION (4 Cols) */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-slate-900/60 dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-950 p-6 rounded-3xl border border-amber-500/30 space-y-5">
+            <div className="bg-linear-to-br from-amber-500/10 via-slate-900/40 to-slate-900/60 dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-950 p-6 rounded-3xl border border-amber-500/30 space-y-5">
               <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">
                 Hasil Analisis Beban
               </span>
@@ -431,7 +431,7 @@ export default function LoadProfileBuilder({ isOpen, onClose, onApply }: LoadPro
 
               {/* Card 3: Waktu Operasi Efektif */}
               <div className="bg-white dark:bg-slate-800/90 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                   <Clock size={11} /> Waktu Pakai Efektif
                 </span>
                 <div className="flex items-baseline gap-1.5">
@@ -468,7 +468,7 @@ export default function LoadProfileBuilder({ isOpen, onClose, onApply }: LoadPro
                   onApply(summary.recommendedVA, summary.effectiveHours);
                   onClose();
                 }}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <CheckCircle2 size={16} />
                 Terapkan ke Kalkulator PLTS

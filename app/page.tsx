@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import {
@@ -35,6 +36,7 @@ import {
   Zap,
   Settings2,
   Sliders,
+  Database,
   ShieldCheck,
   Cpu,
   Box,
@@ -301,46 +303,57 @@ export default function SolarCalculator() {
             </div>
           </div>
 
-          {/* THEME SELECTOR */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl border border-slate-300/50 dark:border-slate-700/50 backdrop-blur-sm self-end sm:self-auto">
-            <button
-              onClick={() => setTheme("light")}
-              title="Mode Terang (Light)"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                theme === "light"
-                  ? "bg-white text-amber-600 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* ADMIN CATALOG BUTTON (POINT 6) */}
+            <Link
+              href="/admin"
+              className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold text-xs rounded-2xl border border-purple-200 dark:border-purple-800 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
             >
-              <Sun size={14} />
-              <span className="hidden sm:inline">Light</span>
-            </button>
+              <Database size={14} className="text-purple-600 dark:text-purple-400" />
+              <span className="hidden md:inline">Admin Katalog</span>
+            </Link>
 
-            <button
-              onClick={() => setTheme("dark")}
-              title="Mode Gelap (Dark)"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                theme === "dark"
-                  ? "bg-slate-900 text-blue-400 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              <Moon size={14} />
-              <span className="hidden sm:inline">Dark</span>
-            </button>
+            {/* THEME SELECTOR */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl border border-slate-300/50 dark:border-slate-700/50 backdrop-blur-sm">
+              <button
+                onClick={() => setTheme("light")}
+                title="Mode Terang (Light)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  theme === "light"
+                    ? "bg-white text-amber-600 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                <Sun size={14} />
+                <span className="hidden sm:inline">Light</span>
+              </button>
 
-            <button
-              onClick={() => setTheme("system")}
-              title="Ikuti Tema Perangkat (System)"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                theme === "system"
-                  ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-              }`}
-            >
-              <Laptop size={14} />
-              <span className="hidden sm:inline">System</span>
-            </button>
+              <button
+                onClick={() => setTheme("dark")}
+                title="Mode Gelap (Dark)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  theme === "dark"
+                    ? "bg-slate-900 text-blue-400 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                <Moon size={14} />
+                <span className="hidden sm:inline">Dark</span>
+              </button>
+
+              <button
+                onClick={() => setTheme("system")}
+                title="Ikuti Tema Perangkat (System)"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  theme === "system"
+                    ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                <Laptop size={14} />
+                <span className="hidden sm:inline">System</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -692,10 +705,10 @@ export default function SolarCalculator() {
             </div>
 
             {/* SECTION: FINANCIAL ANALYSIS & ROI (POINT 1 UPGRADE) */}
-            <div className="bg-gradient-to-br from-emerald-950/10 via-slate-900/20 to-slate-900/40 dark:from-emerald-950/40 dark:via-slate-900/90 dark:to-slate-950 rounded-[3rem] p-6 lg:p-10 border border-emerald-500/20 dark:border-emerald-500/30 shadow-2xl space-y-8">
+            <div className="bg-linear-to-br from-emerald-950/10 via-slate-900/20 to-slate-900/40 dark:from-emerald-950/40 dark:via-slate-900/90 dark:to-slate-950 rounded-[3rem] p-6 lg:p-10 border border-emerald-500/20 dark:border-emerald-500/30 shadow-2xl space-y-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/25">
+                  <div className="w-12 h-12 bg-linear-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/25">
                     <TrendingUp size={24} />
                   </div>
                   <div>
@@ -1250,7 +1263,7 @@ export default function SolarCalculator() {
               {/* BUTTON 1: EXPORT PDF PROPOSAL (POINT 2) */}
               <button
                 onClick={() => setIsPdfModalOpen(true)}
-                className="flex-1 sm:flex-none px-6 py-4 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+                className="flex-1 sm:flex-none px-6 py-4 bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
               >
                 <FileText size={18} />
                 Export PDF Proposal
@@ -1299,7 +1312,7 @@ export default function SolarCalculator() {
               {/* Form Inputs */}
               <div className="space-y-4">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <UserCheck size={12} className="text-rose-500" /> Nama Klien / Perusahaan
                   </label>
                   <input
@@ -1312,7 +1325,7 @@ export default function SolarCalculator() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <LayoutGrid size={12} className="text-rose-500" /> Judul Proyek
                   </label>
                   <input
@@ -1326,7 +1339,7 @@ export default function SolarCalculator() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                       <MapPin size={12} className="text-rose-500" /> Lokasi Pemasangan
                     </label>
                     <input
@@ -1339,7 +1352,7 @@ export default function SolarCalculator() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                       <ShieldCheck size={12} className="text-rose-500" /> Dibuat Oleh (Engineer)
                     </label>
                     <input
@@ -1402,7 +1415,7 @@ export default function SolarCalculator() {
                     );
                     setIsPdfModalOpen(false);
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 cursor-pointer uppercase tracking-wider"
+                  className="px-6 py-3 bg-linear-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-black rounded-xl transition-all shadow-lg shadow-rose-500/20 active:scale-95 flex items-center gap-2 cursor-pointer uppercase tracking-wider"
                 >
                   <Download size={15} />
                   Download PDF Sekarang
