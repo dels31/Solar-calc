@@ -28,6 +28,8 @@ import {
   type Fuse,
 } from "@/lib/defaultData";
 import { formatRupiah } from "@/lib/solarCalculator";
+import { useAuth } from "@/context/AuthContext";
+import AuthModal from "@/components/AuthModal";
 import {
   Sun,
   Battery as BatteryIcon,
@@ -46,6 +48,8 @@ import {
   Users,
   Crown,
   MessageCircle,
+  ShieldAlert,
+  Loader2,
 } from "lucide-react";
 
 export interface AdminUser {
@@ -54,6 +58,7 @@ export interface AdminUser {
   displayName: string | null;
   photoURL?: string | null;
   isPro: boolean;
+  role?: "user" | "superadmin";
   plan: "free" | "pro";
   proPlanType?: "project" | "monthly" | "lifetime";
   createdAt?: unknown;
@@ -65,7 +70,9 @@ type ThemeMode = "light" | "dark" | "system";
 type CatalogItemForm = Record<string, string | number | undefined>;
 
 export default function AdminCatalogPage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("panels");
+  const { user, userProfile, isSuperAdmin, loading: authLoading } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("users");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -292,6 +299,82 @@ export default function AdminCatalogPage() {
     if (userFilter === "free") return !u.isPro;
     return true;
   });
+
+  // Guard 1: Loading Auth State
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] flex items-center justify-center p-4">
+        <div className="text-center space-y-3">
+          <Loader2 size={36} className="animate-spin text-purple-600 mx-auto" />
+          <p className="text-xs font-bold text-slate-500">Memverifikasi Hak Akses Superadmin...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard 2: Unauthorized (Non-Superadmin) Screen
+  if (!user || !isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] flex items-center justify-center p-4 font-sans">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-8 shadow-2xl text-center space-y-6 relative">
+          
+          <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-2xl mx-auto flex items-center justify-center shadow-inner">
+            <ShieldAlert size={32} />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+              Akses Ditolak (403 Unauthorized)
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Halaman Admin Center & Approval Plan dilindungi dan hanya dapat diakses oleh akun <strong>Super Administrator</strong> 7 Layers IT Solutions.
+            </p>
+            {user && (
+              <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-300/30 font-medium">
+                Akun aktif: <strong>{user.email}</strong>
+                <p className="text-[10px] text-slate-400 mt-0.5">Role saat ini: {userProfile?.role || "User"}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2.5 pt-2">
+            {!user ? (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Login sebagai Superadmin
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              >
+                Ganti Akun Superadmin Lain
+              </button>
+            )}
+
+            <Link
+              href="/"
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft size={14} />
+              <span>Kembali ke Kalkulator</span>
+            </Link>
+          </div>
+
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            title="Login Super Administrator"
+            subtitle="Masukkan email superadmin untuk mengakses dashboard"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] p-4 lg:p-10 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">

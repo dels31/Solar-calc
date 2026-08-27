@@ -7,8 +7,6 @@ import {
   X,
   Crown,
   QrCode,
-  Loader2,
-  Sparkles,
   MessageCircle,
 } from "lucide-react";
 
@@ -18,10 +16,9 @@ interface PaymentModalProps {
   onSuccess: () => void;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) {
-  const { user, upgradeToPro } = useAuth();
+export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
+  const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<"project" | "unlimited">("unlimited");
-  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
 
@@ -36,21 +33,6 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModa
 Mohon bantuannya untuk di-ACC / aktivasi paket Pro saya ya min. Terima kasih! ðŸ™`;
 
   const waUrl = `https://wa.me/6281993507390?text=${encodeURIComponent(waMessage)}`;
-
-  const handleSimulatePayment = async () => {
-    setIsProcessing(true);
-    try {
-      await upgradeToPro();
-      setTimeout(() => {
-        setIsProcessing(false);
-        onSuccess();
-        onClose();
-      }, 1000);
-    } catch (err) {
-      console.error(err);
-      setIsProcessing(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -169,35 +151,13 @@ Mohon bantuannya untuk di-ACC / aktivasi paket Pro saya ya min. Terima kasih! ðŸ
                 href={waUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full mt-3 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 text-center"
+                className="w-full mt-3 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-2xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 text-center"
               >
-                <MessageCircle size={16} />
+                <MessageCircle size={17} />
                 <span>Konfirmasi Bukti Transfer via WhatsApp (0819-9350-7390)</span>
               </a>
             </div>
           </div>
-        </div>
-
-        {/* INSTANT PRO VERIFICATION BUTTON (TESTING / ACC DEMO) */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={handleSimulatePayment}
-            disabled={isProcessing}
-            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-amber-400 dark:text-amber-300 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all border border-amber-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 size={15} className="animate-spin" />
-                <span>Memproses Aktivasi Instan...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={15} />
-                <span>Simulasi Aktivasi Instan (Sandbox Demo)</span>
-              </>
-            )}
-          </button>
         </div>
 
       </div>

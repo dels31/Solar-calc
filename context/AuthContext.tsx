@@ -13,20 +13,30 @@ import {
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase";
 
+export const SUPERADMIN_EMAILS = [
+  "bapuk1331@gmail.com",
+  "delly@7layers.id",
+  "admin@7layers.id",
+];
+
 export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
   isPro: boolean;
+  role: "user" | "superadmin";
   plan: "free" | "pro";
+  proPlanType?: "project" | "monthly" | "lifetime";
   exportsCount: number;
   createdAt?: unknown;
+  updatedAt?: unknown;
 }
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
+  isSuperAdmin: boolean;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
@@ -42,11 +52,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isSuperAdmin = Boolean(
+    (user?.email && SUPERADMIN_EMAILS.includes(user.email.toLowerCase())) ||
+    userProfile?.role === "superadmin"
+  );
+
   // Sync / create user profile document in Firestore
   const syncUserProfile = async (firebaseUser: User) => {
     try {
       const userDocRef = doc(db, "users", firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
+
+      const userEmail = firebaseUser.email?.toLowerCase() || "";
+      const isSuper = SUPERADMIN_EMAILS.includes(userEmail);
 
       if (!userDoc.exists()) {
         const newProfile: UserProfile = {
@@ -54,26 +72,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
           photoURL: firebaseUser.photoURL,
-          isPro: false,
-          plan: "free",
+          isPro: isSuper, // Superadmin auto PRO
+          role: isSuper ? "superadmin" : "user",
+          plan: isSuper ? "pro" : "free",
+          proPlanType: isSuper ? "lifetime" : undefined,
           exportsCount: 0,
           createdAt: serverTimestamp(),
         };
         await setDoc(userDocRef, newProfile);
         setUserProfile(newProfile);
       } else {
-        setUserProfile(userDoc.data() as UserProfile);
+        const data = userDoc.data() as UserProfile;
+        if (isSuper && data.role !== "superadmin") {
+          await updateDoc(userDocRef, {
+            role: "superadmin",
+            isPro: true,
+            plan: "pro",
+            proPlanType: "lifetime",
+          });
+          setUserProfile({ ...data, role: "superadmin", isPro: true, plan: "pro", proPlanType: "lifetime" });
+        } else {
+          setUserProfile(data);
+        }
       }
     } catch (err) {
       console.warn("Gagal sinkronisasi user profile ke Firestore:", err);
-      // Fallback in-memory
+      const userEmail = firebaseUser.email?.toLowerCase() || "";
+      const isSuper = SUPERADMIN_EMAILS.includes(userEmail);
       setUserProfile({
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName || "User",
         photoURL: firebaseUser.photoURL,
-        isPro: false,
-        plan: "free",
+        isPro: isSuper,
+        role: isSuper ? "superadmin" : "user",
+        plan: isSuper ? "pro" : "free",
         exportsCount: 0,
       });
     }
@@ -135,7 +168,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile((prev) => (prev ? { ...prev, isPro: true, plan: "pro" } : null));
     } catch (err) {
       console.error("Gagal upgrade ke Pro:", err);
-      // Fallback local update
       setUserProfile((prev) => (prev ? { ...prev, isPro: true, plan: "pro" } : null));
     }
   };
@@ -145,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         userProfile,
+        isSuperAdmin,
         loading,
         loginWithGoogle,
         loginWithEmail,

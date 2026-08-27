@@ -103,7 +103,7 @@ export default function SolarCalculator() {
   );
 
   // Firebase Auth & User Profile State
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, isSuperAdmin, logout } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingExportAction, setPendingExportAction] = useState<"pdf" | "excel" | null>(null);
@@ -416,14 +416,16 @@ export default function SolarCalculator() {
               </button>
             )}
 
-            {/* ADMIN CATALOG BUTTON (POINT 6) */}
-            <Link
-              href="/admin"
-              className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold text-xs rounded-2xl border border-purple-200 dark:border-purple-800 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-            >
-              <Database size={14} className="text-purple-600 dark:text-purple-400" />
-              <span className="hidden md:inline">Admin</span>
-            </Link>
+            {/* ADMIN CATALOG BUTTON (SUPERADMIN ONLY) */}
+            {isSuperAdmin && (
+              <Link
+                href="/admin"
+                className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 font-bold text-xs rounded-2xl border border-purple-200 dark:border-purple-800 transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+              >
+                <Database size={14} className="text-purple-600 dark:text-purple-400" />
+                <span className="hidden md:inline">Admin</span>
+              </Link>
+            )}
 
             {/* THEME SELECTOR */}
             <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-2xl border border-slate-300/50 dark:border-slate-700/50 backdrop-blur-sm">
